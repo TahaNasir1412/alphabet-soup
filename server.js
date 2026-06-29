@@ -385,7 +385,20 @@ app.post('/api/modifiers', async (req, res) => {
     parsed._model = PROVIDERS[provider].model;
     res.json(parsed);
   } catch(e) {
-    console.error(`AI call failed (${e.message}) — falling back to rule-based`);
+    console.error(`${provider} failed: ${e.message}`);
+    if (provider === 'gemini' && PROVIDERS.groq.key) {
+      try {
+        console.log('Gemini failed — trying Groq as fallback...');
+        const raw = await callGroq(prompt);
+        const clean = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        parsed._source = 'groq';
+        parsed._model = PROVIDERS.groq.model;
+        return res.json(parsed);
+      } catch(e2) {
+        console.error(`Groq also failed: ${e2.message}`);
+      }
+    }
     const fb = ruleBased(keyword, output_lang);
     fb._source = 'rule-based';
     fb._ai_error = e.message;
