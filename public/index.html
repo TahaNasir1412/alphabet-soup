@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alphabet Soup — Keyword Sweep Tool</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#0a0a0b;--s1:#111114;--s2:#18181c;--s3:#222228;--border:#2a2a32;--border2:#38383f;
+  --text:#f0f0f0;--muted:#888;--dim:#555;
+  --accent:#7c6fe0;--accent-bg:rgba(124,111,224,0.1);--accent-b:rgba(124,111,224,0.3);
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.08);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,0.08);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.08);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.08);
+  --r:8px;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+.sidebar{background:var(--s1);border-right:1px solid var(--border);padding:20px;overflow-y:auto;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:16px}
+.main{padding:28px 32px;overflow-y:auto}
+
+/* ── SIDEBAR ELEMENTS ── */
+.logo{display:flex;align-items:center;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.logo-text{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.logo-text span{color:var(--accent)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
+.lbl-tip{font-size:10px;color:var(--dim);text-transform:none;letter-spacing:0;cursor:pointer;text-decoration:underline dotted}
+
+input[type=text],input[type=number],select,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-size:13px;padding:8px 10px;outline:none;transition:border-color .15s;
+  font-family:'Inter',sans-serif;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select option{background:var(--s2)}
+textarea{resize:vertical;min-height:48px;font-size:12px}
+
+.tip-box{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:11px;color:var(--muted);line-height:1.6;display:none}
+.tip-box.show{display:block}
+
+/* sweep toggles */
+.sweep-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.stog{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;user-select:none;font-size:12px;color:var(--muted)}
+.stog:hover{border-color:var(--border2);color:var(--text)}
+.stog.on{border-color:var(--accent-b);background:var(--accent-bg);color:var(--accent)}
+.stog input{display:none}
+.stog-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.6}
+.stog.on .stog-dot{opacity:1}
+
+/* strict filter toggle */
+.toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer}
+.toggle{width:32px;height:18px;background:var(--border2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:white;transition:transform .2s}
+.toggle.on::after{transform:translateX(14px)}
+.toggle-label{font-size:12px;color:var(--muted)}
+
+/* buttons */
+.btn-primary{width:100%;padding:11px;background:var(--accent);color:white;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-stop{width:100%;padding:9px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;display:none}
+.btn-sm{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--s2);color:var(--text);transition:all .15s}
+.btn-sm:hover{border-color:var(--border2);background:var(--s3)}
+.btn-sm.accent{border-color:var(--accent-b);background:var(--accent-bg);color:var(--accent)}
+.btn-sm.accent:hover{background:var(--accent);color:white;border-color:var(--accent)}
+
+/* ── MAIN AREA ── */
+.page-header{margin-bottom:24px}
+.page-title{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.page-sub{color:var(--muted);font-size:13px}
+
+/* how-to */
+.howto{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px}
+.howto-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:var(--accent)}
+.howto-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.howto-step{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:12px}
+.step-num{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.step-title{font-size:12px;font-weight:600;margin-bottom:3px}
+.step-desc{font-size:11px;color:var(--muted);line-height:1.5}
+
+/* status */
+.status-bar{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:18px;display:none}
+.status-bar.show{display:block}
+.status-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.status-msg{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500}
+.status-count{font-size:12px;color:var(--muted)}
+.progress{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.status-current{font-size:11px;color:var(--dim);margin-top:6px;font-family:var(--mono)}
+.spinner{width:13px;height:13px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* niche card */
+.niche-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:18px;display:none}
+.niche-card.show{display:block}
+.niche-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:12px}
+.niche-item .k{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.niche-item .v{font-size:13px;font-weight:500}
+.niche-notes{font-size:12px;color:var(--muted);line-height:1.6;padding-top:12px;border-top:1px solid var(--border)}
+.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;margin:2px}
+.tag-a{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-b)}
+.tag-g{background:var(--s3);color:var(--muted);border:1px solid var(--border)}
+.tag-green{background:var(--green-bg);color:var(--green)}
+.ai-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:3px;background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.2);font-weight:600}
+
+/* clarifications */
+.clarify-section{background:var(--s2);border:1px solid var(--amber-b,rgba(245,158,11,.3));border-radius:var(--r);padding:14px 16px;margin-bottom:18px;display:none}
+.clarify-section.show{display:block}
+.clarify-title{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.clarify-q{margin-bottom:10px}
+.clarify-q-text{font-size:13px;margin-bottom:6px}
+.clarify-opts{display:flex;flex-wrap:wrap;gap:6px}
+.clarify-opt{padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--s3);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s}
+.clarify-opt:hover{border-color:var(--accent-b);background:var(--accent-bg);color:var(--accent)}
+.clarify-opt.chosen{border-color:var(--accent);background:var(--accent);color:white}
+
+/* results */
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.results-title{font-size:15px;font-weight:600}
+.results-actions{display:flex;gap:6px;flex-wrap:wrap}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filter-bar input{max-width:200px}
+.sweep-pills{display:flex;gap:4px;flex-wrap:wrap}
+.sp{font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--mono)}
+.sp.on{border-color:var(--accent-b);background:var(--accent-bg);color:var(--accent)}
+
+/* table */
+.tbl-wrap{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.kw-table{width:100%;border-collapse:collapse}
+.kw-table th{background:var(--s3);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);padding:8px 14px;text-align:left;border-bottom:1px solid var(--border);font-weight:600}
+.kw-table td{padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.kw-table tr:last-child td{border-bottom:none}
+.kw-table tr:hover td{background:var(--s2)}
+.kw-table .kw-text{font-family:var(--mono);font-size:12px;cursor:pointer;color:var(--text)}
+.kw-table .kw-text:hover{color:var(--accent)}
+.sweep-badge{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600;font-family:var(--mono);white-space:nowrap}
+.copy-cell{color:var(--dim);cursor:pointer;font-size:11px;opacity:0;transition:opacity .15s}
+.kw-table tr:hover .copy-cell{opacity:1}
+
+/* recursive */
+.seeds-section{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-top:18px;display:none}
+.seeds-section.show{display:block}
+.seeds-title{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.seeds{display:flex;flex-wrap:wrap;gap:6px}
+.seed{font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--accent-b);background:var(--accent-bg);color:var(--accent);cursor:pointer;transition:all .15s}
+.seed:hover{background:var(--accent);color:white}
+
+/* empty */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px;filter:grayscale(1);opacity:.4}
+.empty-title{font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:13px;line-height:1.6}
+
+/* tooltip */
+[data-tip]{position:relative;cursor:help}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:100;pointer-events:none;max-width:220px;white-space:normal;text-align:center;line-height:1.4}
+
+
+/* ── MODIFIER BREAKDOWN ── */
+.breakdown{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px;display:none}
+.breakdown.show{display:block}
+.breakdown-title{font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.breakdown-toggle{font-size:11px;color:var(--accent);cursor:pointer;font-weight:400}
+.sweep-blocks{display:flex;flex-direction:column;gap:8px}
+.sweep-block{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.sweep-block-header{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;transition:background .15s}
+.sweep-block-header:hover{background:var(--s3)}
+.sweep-block-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sweep-block-name{font-size:12px;font-weight:600;flex:1}
+.sweep-block-meta{font-size:11px;color:var(--dim);display:flex;gap:10px}
+.sweep-block-count{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.sweep-block-body{padding:10px 12px;display:none;border-top:1px solid var(--border);background:var(--s1)}
+.sweep-block-body.open{display:block}
+.modifier-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.mod-chip{font-size:11px;padding:3px 8px;border-radius:4px;font-family:var(--mono);border:1px solid}
+.formula{font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--mono);line-height:1.8}
+.formula-ex{color:var(--text);background:var(--s3);padding:2px 6px;border-radius:3px;display:inline-block;margin:2px 0}
+.sweep-block-chevron{font-size:10px;color:var(--dim);transition:transform .2s}
+.sweep-block-chevron.open{transform:rotate(180deg)}
+
+/* ── ANATOMY VIEW ── */
+.anatomy-row{display:flex;align-items:center;gap:0;font-family:var(--mono);font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)}
+.anatomy-row:last-child{border-bottom:none}
+.anatomy-base{color:var(--text);background:rgba(124,111,224,.12);padding:2px 6px;border-radius:3px 0 0 3px;border:1px solid rgba(124,111,224,.3)}
+.anatomy-plus{color:var(--dim);padding:0 4px}
+.anatomy-mod{padding:2px 6px;border-radius:0 3px 3px 0;border:1px solid}
+.anatomy-arrow{color:var(--dim);padding:0 8px}
+.anatomy-result{color:var(--text);font-weight:500}
+.anatomy-copy{color:var(--dim);cursor:pointer;margin-left:auto;padding:0 4px;font-size:10px}
+.anatomy-copy:hover{color:var(--accent)}
+
+/* responsive */
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto}
+  .main{padding:16px}
+  .howto-steps{grid-template-columns:1fr 1fr}
+}
+
+/* scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    <div class="logo-text">Alphabet<span>Soup</span></div>
+  </div>
+
+  <div class="field">
+    <label class="lbl">
+      Main keyword
+      <span class="lbl-tip" onclick="toggleTip('tip-kw')">what's this?</span>
+    </label>
+    <input type="text" id="kw-input" placeholder="e.g. anime salt, moviebox..." />
+    <div class="tip-box" id="tip-kw">
+      Type the main keyword you want to research. This is the word or phrase you're trying to rank for. Example: if you want to make a page about "anime salt", type exactly that.
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="lbl">
+      Extra context <span style="color:var(--dim);font-size:10px;letter-spacing:0;text-transform:none">(optional)</span>
+      <span class="lbl-tip" onclick="toggleTip('tip-hint')">what's this?</span>
+    </label>
+    <textarea id="niche-hint" placeholder="e.g. free anime streaming app for Indian users..."></textarea>
+    <div class="tip-box" id="tip-hint">
+      Give the AI extra context about your keyword. For example: "this is a free anime streaming website" or "this is a local plumbing business in London". Leave blank and AI will figure it out automatically.
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label class="lbl" data-tip="Which country's Google results you want. Pick the country where most of your users are.">
+        🌍 Country
+      </label>
+      <select id="geo-select">
+        <option value="auto">Auto-detect</option>
+        <optgroup label="🌏 South Asia">
+          <option value="in">India</option>
+          <option value="pk">Pakistan</option>
+          <option value="bd">Bangladesh</option>
+          <option value="np">Nepal</option>
+          <option value="lk">Sri Lanka</option>
+        </optgroup>
+        <optgroup label="🌏 East & SE Asia">
+          <option value="jp">Japan</option>
+          <option value="kr">South Korea</option>
+          <option value="id">Indonesia</option>
+          <option value="ph">Philippines</option>
+          <option value="th">Thailand</option>
+          <option value="vn">Vietnam</option>
+          <option value="my">Malaysia</option>
+        </optgroup>
+        <optgroup label="🌍 Middle East">
+          <option value="ae">UAE</option>
+          <option value="sa">Saudi Arabia</option>
+          <option value="eg">Egypt</option>
+          <option value="tr">Turkey</option>
+        </optgroup>
+        <optgroup label="🌍 Europe">
+          <option value="gb">UK</option>
+          <option value="de">Germany</option>
+          <option value="fr">France</option>
+          <option value="it">Italy</option>
+          <option value="es">Spain</option>
+          <option value="nl">Netherlands</option>
+          <option value="pl">Poland</option>
+          <option value="no">Norway</option>
+          <option value="se">Sweden</option>
+          <option value="dk">Denmark</option>
+          <option value="ch">Switzerland</option>
+          <option value="at">Austria</option>
+        </optgroup>
+        <optgroup label="🌎 Americas">
+          <option value="us">USA</option>
+          <option value="ca">Canada</option>
+          <option value="br">Brazil</option>
+          <option value="mx">Mexico</option>
+          <option value="ar">Argentina</option>
+          <option value="co">Colombia</option>
+        </optgroup>
+        <optgroup label="🌍 Africa & Oceania">
+          <option value="ng">Nigeria</option>
+          <option value="za">South Africa</option>
+          <option value="ke">Kenya</option>
+          <option value="au">Australia</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="lbl" data-tip="Language for Google suggestions AND for the modifier words. Pick the language your users type in.">
+        💬 Language
+      </label>
+      <select id="lang-select">
+        <option value="en">English</option>
+        <option value="pt">Portuguese 🇧🇷</option>
+        <option value="es">Spanish 🇪🇸</option>
+        <option value="de">German 🇩🇪</option>
+        <option value="fr">French 🇫🇷</option>
+        <option value="it">Italian 🇮🇹</option>
+        <option value="hi">Hindi 🇮🇳</option>
+        <option value="ar">Arabic 🇸🇦</option>
+        <option value="ja">Japanese 🇯🇵</option>
+        <option value="ko">Korean 🇰🇷</option>
+        <option value="tr">Turkish 🇹🇷</option>
+        <option value="pl">Polish 🇵🇱</option>
+        <option value="nl">Dutch 🇳🇱</option>
+        <option value="id">Indonesian 🇮🇩</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="lbl">
+      Sweeps to run
+      <span class="lbl-tip" onclick="toggleTip('tip-sweeps')">what are sweeps?</span>
+    </label>
+    <div class="tip-box" id="tip-sweeps">
+      Each "sweep" is a different way of asking Google for suggestions. S1 adds A, B, C... to your keyword. S3 adds question words like "how to" or "why". S9 adds smart phrases the AI generates for your specific niche. Turn off sweeps you don't need to go faster.
+    </div>
+    <div class="sweep-grid" id="sweep-toggles">
+      <label class="stog on" data-tip="Adds A to Z after keyword: 'anime salt a', 'anime salt b'..."><input type="checkbox" value="1" checked><div class="stog-dot"></div>S1 Suffix A-Z</label>
+      <label class="stog on" data-tip="Adds A to Z before keyword: 'a anime salt', 'b anime salt'..."><input type="checkbox" value="2" checked><div class="stog-dot"></div>S2 Prefix A-Z</label>
+      <label class="stog on" data-tip="Adds question words: 'how to anime salt', 'why anime salt not working'..."><input type="checkbox" value="3" checked><div class="stog-dot"></div>S3 Questions</label>
+      <label class="stog on" data-tip="Adds device/access words: 'anime salt apk', 'anime salt android'..."><input type="checkbox" value="4" checked><div class="stog-dot"></div>S4 Platform</label>
+      <label class="stog on" data-tip="Adds problem words: 'anime salt not working', 'anime salt banned'..."><input type="checkbox" value="5" checked><div class="stog-dot"></div>S5 Problems</label>
+      <label class="stog on" data-tip="Adds audience words: 'anime salt hindi dubbed', 'anime salt for beginners'..."><input type="checkbox" value="6" checked><div class="stog-dot"></div>S6 Context</label>
+      <label class="stog on" data-tip="Adds version numbers, years, episode numbers relevant to your niche"><input type="checkbox" value="7" checked><div class="stog-dot"></div>S7 Numbers</label>
+      <label class="stog" data-tip="Adds two-letter combos: 'anime salt aa', 'anime salt ab'... (deep but slow)"><input type="checkbox" value="8"><div class="stog-dot"></div>S8 Deep (slow)</label>
+      <label class="stog on" data-tip="AI-generated complete phrases specific to your exact keyword and niche"><input type="checkbox" value="9" checked><div class="stog-dot"></div>S9 AI Custom</label>
+      <label class="stog on" data-tip="Action-first queries: 'watch anime salt', 'download anime salt', 'best anime salt'"><input type="checkbox" value="10" checked><div class="stog-dot"></div>S10 Wildcard</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="lbl" data-tip="How long to wait between Google requests. Higher = safer, slower. Lower = faster but may hit rate limits.">
+      Delay (ms)
+    </label>
+    <input type="number" id="delay-input" value="650" min="300" max="3000" step="50" />
+  </div>
+
+  <div class="toggle-row" onclick="toggleStrict()">
+    <div class="toggle on" id="strict-toggle"></div>
+    <span class="toggle-label" data-tip="When ON, only keeps keywords that contain your exact keyword. When OFF, keeps everything Google suggests.">Strict filter (recommended)</span>
+  </div>
+
+  <button class="btn-primary" id="run-btn" onclick="startRun()">
+    <span id="btn-icon">⚡</span> Generate Keywords
+  </button>
+  <button class="btn-stop" id="stop-btn" onclick="stopRun()">⏹ Stop sweep</button>
+
+  <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--dim);line-height:1.7">
+    Results update live as sweeps run.<br>
+    Export CSV when done → paste into Ahrefs for volume data.
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <div class="page-header">
+    <div class="page-title">Alphabet Soup 🍜</div>
+    <div class="page-sub">AI-powered Google Autocomplete harvester — works for any keyword in any language</div>
+  </div>
+
+  <!-- HOW TO -->
+  <div class="howto">
+    <div class="howto-title">📖 How to use this tool</div>
+    <div class="howto-steps">
+      <div class="howto-step">
+        <div class="step-num">STEP 1</div>
+        <div class="step-title">Type your keyword</div>
+        <div class="step-desc">Enter the main word or phrase you want to research in the box on the left. Keep it simple — just the keyword.</div>
+      </div>
+      <div class="howto-step">
+        <div class="step-num">STEP 2</div>
+        <div class="step-title">Pick your country & language</div>
+        <div class="step-desc">Select the country your users are in, and the language they type in. If your site is for Brazil, pick Brazil + Portuguese.</div>
+      </div>
+      <div class="howto-step">
+        <div class="step-num">STEP 3</div>
+        <div class="step-title">Choose sweeps & click Generate</div>
+        <div class="step-desc">Keep all sweeps ON for the most keywords. Hit Generate. The AI figures out your niche automatically and starts collecting suggestions.</div>
+      </div>
+      <div class="howto-step">
+        <div class="step-num">STEP 4</div>
+        <div class="step-title">Review & export</div>
+        <div class="step-desc">Keywords appear live as they're found. Filter by sweep type, click any keyword to copy it, or export everything as a CSV file.</div>
+      </div>
+      <div class="howto-step">
+        <div class="step-num">BONUS</div>
+        <div class="step-title">Answer AI questions</div>
+        <div class="step-desc">If the AI asks you a clarifying question, click an answer. This makes the modifiers even more accurate for your specific niche.</div>
+      </div>
+      <div class="howto-step">
+        <div class="step-num">THEN</div>
+        <div class="step-title">Get search volume</div>
+        <div class="step-desc">Export the CSV → paste into Ahrefs or Google Keyword Planner to see which keywords get the most searches.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar" id="status-bar">
+    <div class="status-top">
+      <div class="status-msg"><div class="spinner" id="spinner"></div><span id="status-text">Starting...</span></div>
+      <div class="status-count" id="status-count">0 keywords found</div>
+    </div>
+    <div class="progress"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    <div class="status-current" id="status-current"></div>
+  </div>
+
+  <!-- NICHE CARD -->
+  <div class="niche-card" id="niche-card">
+    <div class="niche-grid" id="niche-grid"></div>
+    <div class="niche-notes" id="niche-notes"></div>
+  </div>
+
+  <!-- CLARIFICATIONS -->
+  <div class="clarify-section" id="clarify-section">
+    <div class="clarify-title">💡 The AI has questions — answering these improves accuracy</div>
+    <div id="clarify-body"></div>
+    <button class="btn-sm accent" style="margin-top:10px" onclick="applyClarifications()">Apply answers & refine modifiers ↗</button>
+  </div>
+
+
+  <!-- MODIFIER BREAKDOWN -->
+  <div class="breakdown" id="breakdown-panel">
+    <div class="breakdown-title">
+      🔬 Sweep anatomy — exactly what the tool queried Google with
+      <span class="breakdown-toggle" onclick="toggleBreakdown()">hide ▲</span>
+    </div>
+    <div class="sweep-blocks" id="sweep-blocks"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-section" style="display:none">
+    <div class="results-header">
+      <div class="results-title">Keywords <span id="kw-count" style="color:var(--muted);font-weight:400;font-size:13px"></span></div>
+      <div class="results-actions">
+        <button class="btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn-sm accent" onclick="copyAll()">📋 Copy all</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-input" placeholder="Filter keywords..." oninput="renderTable()" style="max-width:200px">
+      <div class="sweep-pills" id="sweep-pills"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="kw-table">
+        <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+        <tbody id="kw-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SEEDS -->
+  <div class="seeds-section" id="seeds-section">
+    <div class="seeds-title">🔁 Related keywords to sweep next — click any to run a new sweep</div>
+    <div class="seeds" id="seeds"></div>
+  </div>
+
+  <!-- EMPTY -->
+  <div class="empty" id="empty-state">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">Ready to find keywords</div>
+    <div class="empty-sub">Enter a keyword on the left and click Generate.<br>The AI will figure out your niche and find every possible suggestion Google has.</div>
+  </div>
+</main>
+</div>
+
+<script>
+const SWEEP_COLORS={1:'#7c6fe0',2:'#06b6d4',3:'#10b981',4:'#f59e0b',5:'#ef4444',6:'#8b5cf6',7:'#ec4899',8:'#14b8a6',9:'#f97316',10:'#84cc16'};
+const SWEEP_NAMES={1:'S1_Suffix',2:'S2_Prefix',3:'S3_Question',4:'S4_Platform',5:'S5_Problem',6:'S6_Context',7:'S7_Number',8:'S8_Double',9:'S9_Custom',10:'S10_Wild'};
+
+let allKw=[],activeFilters=new Set(),stopFlag=false,running=false,modData=null,clarifyAnswers={};
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function $(id){return document.getElementById(id)}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function toggleTip(id){$('tip-kw')&&($('tip-kw').style.display='');document.querySelectorAll('.tip-box').forEach(b=>{if(b.id!==id)b.classList.remove('show')});$(id)?.classList.toggle('show')}
+
+let strictOn=true;
+function toggleStrict(){strictOn=!strictOn;$('strict-toggle').classList.toggle('on',strictOn)}
+
+document.querySelectorAll('.stog').forEach(l=>{
+  l.addEventListener('click',()=>{const cb=l.querySelector('input');setTimeout(()=>l.classList.toggle('on',cb.checked),0)});
+});
+
+function getSelectedSweeps(){return[...$('sweep-toggles').querySelectorAll('input:checked')].map(i=>+i.value)}
+
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function fetchSuggestions(q,geo,lang){
+  try{
+    const r=await fetch(`/api/suggest?q=${encodeURIComponent(q)}&gl=${geo}&hl=${lang}`);
+    const d=await r.json();return d.suggestions||[];
+  }catch{return[]}
+}
+
+async function fetchModifiers(kw,hint,lang){
+  const r=await fetch('/api/modifiers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyword:kw,niche_hint:hint,output_lang:lang})});
+  return await r.json();
+}
+
+// ── MAIN RUN ──────────────────────────────────────────────────────────────────
+async function startRun(){
+  const kw=$('kw-input').value.trim();
+  if(!kw){$('kw-input').focus();return;}
+
+  allKw=[];activeFilters=new Set();stopFlag=false;running=true;modData=null;clarifyAnswers={};
+
+  $('run-btn').disabled=true;$('stop-btn').style.display='block';
+  $('status-bar').classList.add('show');$('empty-state').style.display='none';
+  $('results-section').style.display='none';$('niche-card').classList.remove('show');
+  $('clarify-section').classList.remove('show');$('seeds-section').classList.remove('show');
+  $('kw-tbody').innerHTML='';$('sweep-pills').innerHTML='';
+
+  const geo=$('geo-select').value;
+  const lang=$('lang-select').value;
+  const delay=+$('delay-input').value||650;
+  const hint=$('niche-hint').value.trim();
+  const sweeps=getSelectedSweeps();
+
+  setStatus('AI analyzing niche...',5);
+
+  try{
+    modData=await fetchModifiers(kw,hint,lang);
+    renderNicheCard(modData);
+    if(modData.suggested_clarifications?.length) renderClarifications(modData.suggested_clarifications);
+  }catch(e){
+    console.warn('Modifier fetch failed',e);
+    modData={sweeps:{s3_question_prefixes:['how to','why','what is','is','can i'],s3_question_suffixes:['safe','free','working','good','best'],s4_platform:['free','online','app','download'],s5_problem:['not working','alternative','error','down'],s6_context:['for beginners','advanced','free','best'],s7_numbers:['2024','2025'],s9_custom:[],s10_wildcard:[`best ${kw}`,`free ${kw}`]}};
+  }
+
+  const resolvedGeo=geo==='auto'?(modData.geo_recommendation||'us'):geo;
+  const m=modData.sweeps||{};
+
+  const SWEEP_DEFS={
+    1:{label:'S1_Suffix',queries:'abcdefghijklmnopqrstuvwxyz'.split('').map(c=>`${kw} ${c}`)},
+    2:{label:'S2_Prefix',queries:'abcdefghijklmnopqrstuvwxyz'.split('').map(c=>`${c} ${kw}`)},
+    3:{label:'S3_Question',queries:[...(m.s3_question_prefixes||['how to','why','what is','is']).map(p=>`${p} ${kw}`),(m.s3_question_suffixes||['safe','free']).map(s=>`${kw} ${s}`)].flat()},
+    4:{label:'S4_Platform',queries:(m.s4_platform||[]).map(p=>`${kw} ${p}`)},
+    5:{label:'S5_Problem',queries:(m.s5_problem||[]).map(p=>`${kw} ${p}`)},
+    6:{label:'S6_Context',queries:(m.s6_context||[]).map(p=>`${kw} ${p}`)},
+    7:{label:'S7_Number',queries:(m.s7_numbers||['2024','2025']).map(n=>`${kw} ${n}`)},
+    8:{label:'S8_Double',queries:(()=>{const q=[];'abcdefghij'.split('').forEach(a=>'abcdefghij'.split('').forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
+    9:{label:'S9_Custom',queries:m.s9_custom||[]},
+    10:{label:'S10_Wild',queries:m.s10_wildcard||[]},
+  };
+
+  const total=sweeps.length;let done=0;
+  for(const num of sweeps){
+    if(stopFlag)break;
+    const def=SWEEP_DEFS[num];if(!def)continue;
+    done++;setStatus(`Running ${def.label} (${done}/${total})`,5+Math.round((done/total)*88));
+    for(const q of def.queries){
+      if(stopFlag)break;
+      $('status-current').textContent=`→ ${q}`;
+      const sugg=await fetchSuggestions(q,resolvedGeo,lang);
+      let added=0;
+      for(const s of sugg){
+        if(strictOn&&!s.toLowerCase().includes(kw.toLowerCase()))continue;
+        if(allKw.some(k=>k.kw.toLowerCase()===s.toLowerCase()))continue;
+        allKw.push({kw:s,sweep:def.label,mod:q.replace(kw,'').trim()||q});added++;
+      }
+      if(added>0)renderTable();
+      $('status-count').textContent=`${allKw.length} keywords found`;
+      await sleep(delay);
+    }
+  }
+
+  setStatus(stopFlag?'Stopped':'Complete ✓',100);
+  $('spinner').style.display='none';
+  $('run-btn').disabled=false;$('stop-btn').style.display='none';
+  running=false;
+
+  renderTable();renderSeeds(modData);renderBreakdown(SWEEP_DEFS,modData,$('kw-input').value.trim());
+  $('results-section').style.display='block';
+}
+
+function stopRun(){stopFlag=true;$('stop-btn').style.display='none';$('run-btn').disabled=false;}
+
+function setStatus(msg,pct){$('status-text').textContent=msg;$('prog').style.width=(pct||0)+'%';}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderNicheCard(d){
+  $('niche-card').classList.add('show');
+  const src=d._source;
+  $('niche-grid').innerHTML=`
+    <div class="niche-item"><div class="k">Niche</div><div class="v">${d.niche||'—'} <span class="ai-badge">${src==='rule-based'?'⚡ auto':'🤖 AI'}</span></div></div>
+    <div class="niche-item"><div class="k">Intent</div><div class="v"><span class="tag tag-a">${d.intent||'—'}</span></div></div>
+    <div class="niche-item"><div class="k">Primary market</div><div class="v">${d.primary_market||'—'} <span class="tag tag-g">${d.geo_recommendation||'—'}</span></div></div>
+    <div class="niche-item"><div class="k">What user wants</div><div class="v" style="font-size:12px;color:var(--muted)">${d.intent_summary||'—'}</div></div>
+  `;
+  $('niche-notes').textContent=d.niche_notes||'';
+}
+
+function renderClarifications(qs){
+  if(!qs||!qs.length)return;
+  $('clarify-section').classList.add('show');
+  $('clarify-body').innerHTML=qs.map((q,i)=>`
+    <div class="clarify-q">
+      <div class="clarify-q-text">${esc(q.question)}</div>
+      <div class="clarify-opts">
+        ${(q.options||[]).map(o=>`<div class="clarify-opt" onclick="chooseOpt(this,${i},'${esc(o)}')">${esc(o)}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function chooseOpt(el,qi,val){
+  el.closest('.clarify-opts').querySelectorAll('.clarify-opt').forEach(o=>o.classList.remove('chosen'));
+  el.classList.add('chosen');
+  clarifyAnswers[qi]=val;
+}
+
+async function applyClarifications(){
+  const kw=$('kw-input').value.trim();
+  const answers=Object.values(clarifyAnswers).join(', ');
+  const lang=$('lang-select').value;
+  const hint=($('niche-hint').value.trim()+' '+answers).trim();
+  $('niche-hint').value=hint;
+  $('clarify-section').classList.remove('show');
+  const d=await fetchModifiers(kw,hint,lang);
+  modData=d;renderNicheCard(d);
+}
+
+function renderTable(){
+  const filter=$('filter-input')?.value?.toLowerCase()||'';
+  const tbody=$('kw-tbody');
+
+  const sweepIds=[...new Set(allKw.map(k=>k.sweep))];
+  renderPills(sweepIds);
+
+  const filtered=allKw.filter(k=>{
+    const matchText=k.kw.toLowerCase().includes(filter);
+    const matchSweep=activeFilters.size===0||activeFilters.has(k.sweep);
+    return matchText&&matchSweep;
+  });
+
+  $('kw-count').textContent=`(${filtered.length} of ${allKw.length})`;
+  tbody.innerHTML=filtered.map((k,i)=>{
+    const sid=k.sweep.split('_')[0].replace('S','');
+    const color=SWEEP_COLORS[+sid]||'#888';
+    const base=$('kw-input').value.trim();
+    const mod=k.mod||'';
+    const modHtml=mod?`<span style="font-size:10px;font-family:var(--mono);color:var(--dim)">"${esc(base)}" + <span style="color:${color}">"${esc(mod)}"</span></span>`:`<span style="font-size:10px;color:var(--dim)">—</span>`;
+    return`<tr>
+      <td style="color:var(--dim);font-size:11px">${i+1}</td>
+      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="Click to copy">${esc(k.kw)}</span></td>
+      <td><span class="sweep-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
+      <td>${modHtml}</td>
+      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPills(ids){
+  const el=$('sweep-pills');
+  if(el.dataset.rendered)return;
+  el.dataset.rendered='1';
+  ids.forEach(id=>{
+    const sid=id.split('_')[0].replace('S','');
+    const color=SWEEP_COLORS[+sid]||'#888';
+    const btn=document.createElement('span');
+    btn.className='sp on';btn.textContent=id;
+    btn.style.cssText=`border-color:${color}44;color:${color};background:${color}12`;
+    btn.onclick=()=>{
+      btn.classList.toggle('on');
+      if(!btn.classList.contains('on'))activeFilters.add(id);
+      else activeFilters.delete(id);
+      renderTable();
+    };
+    el.appendChild(btn);
+  });
+}
+
+function renderSeeds(d){
+  const seeds=d?.recursive_seeds;if(!seeds?.length)return;
+  $('seeds-section').classList.add('show');
+  $('seeds').innerHTML=seeds.map(s=>`<span class="seed" onclick="runSeed('${esc(s)}')">${esc(s)} →</span>`).join('');
+}
+
+function runSeed(kw){$('kw-input').value=kw;allKw=[];$('sweep-pills').innerHTML='';delete $('sweep-pills').dataset.rendered;startRun();}
+
+function copyKw(kw){navigator.clipboard.writeText(kw).catch(()=>{});}
+
+function copyAll(){navigator.clipboard.writeText(allKw.map(k=>k.kw).join('\n')).catch(()=>{});}
+
+function exportCSV(){
+  const rows=['Keyword,Sweep',...allKw.map(k=>`"${k.kw.replace(/"/g,'""')}","${k.sweep}"`)];
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download=`keywords_${$('kw-input').value.replace(/\s+/g,'_')}.csv`;
+  a.click();
+}
+
+$('kw-input').addEventListener('keydown',e=>{if(e.key==='Enter')startRun();});
+
+function renderBreakdown(defs, mod, kw){
+  const panel=$('breakdown-panel');
+  panel.classList.add('show');
+  const container=$('sweep-blocks');
+  container.innerHTML='';
+
+  const sweepMeta={
+    1:{name:'S1 Suffix A-Z',desc:'Appended every letter of the alphabet after your keyword',how:`"${kw}" + a/b/c...z`},
+    2:{name:'S2 Prefix A-Z',desc:'Prepended every letter before your keyword',how:`a/b/c...z + "${kw}"`},
+    3:{name:'S3 Questions',desc:'Question words before keyword + qualifier words after',how:`"how to ${kw}", "${kw} safe", "${kw} free"...`},
+    4:{name:'S4 Platform',desc:'AI-generated platform/access modifiers for your niche',how:`"${kw}" + each modifier below`},
+    5:{name:'S5 Problems',desc:'AI-generated failure/error modifiers for your niche',how:`"${kw}" + each modifier below`},
+    6:{name:'S6 Context',desc:'AI-generated audience/context modifiers for your niche',how:`"${kw}" + each modifier below`},
+    7:{name:'S7 Numbers',desc:'Version numbers, years, episode numbers relevant to your niche',how:`"${kw}" + each number below`},
+    8:{name:'S8 Double-char',desc:'Two-letter combos for deep long-tail',how:`"${kw}" + aa/ab/ac...`},
+    9:{name:'S9 AI Custom',desc:'Complete search phrases generated specifically for your keyword',how:'Full queries (not just modifiers)'},
+    10:{name:'S10 Wildcard',desc:'Action-first intent variants',how:`watch "${kw}", download "${kw}", best "${kw}"...`},
+  };
+
+  const modifiers={
+    4: mod?.sweeps?.s4_platform||[],
+    5: mod?.sweeps?.s5_problem||[],
+    6: mod?.sweeps?.s6_context||[],
+    7: mod?.sweeps?.s7_numbers||[],
+    9: mod?.sweeps?.s9_custom||[],
+    10: mod?.sweeps?.s10_wildcard||[],
+  };
+
+  Object.entries(defs).forEach(([num,def])=>{
+    const n=+num;
+    const meta=sweepMeta[n];
+    if(!meta)return;
+    const color=SWEEP_COLORS[n]||'#888';
+    const kwFound=allKw.filter(k=>k.sweep===def.label).length;
+    const mods=modifiers[n]||[];
+
+    const block=document.createElement('div');
+    block.className='sweep-block';
+
+    const modChips=mods.length?`
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Modifiers used (${mods.length})</div>
+        <div class="modifier-list">
+          ${mods.map(m=>`<span class="mod-chip" style="background:${color}12;color:${color};border-color:${color}30">${esc(m)}</span>`).join('')}
+        </div>
+      </div>` : '';
+
+    const examples=mods.length?mods.slice(0,3).map(m=>{
+      const q=n===9||n===10?m:`${kw} ${m}`;
+      return`<div class="formula-ex">${esc(q)}</div>`;
+    }).join(''):`<div class="formula-ex">${n<=2?kw+' a, '+kw+' b, '+kw+' c...':meta.how}</div>`;
+
+    block.innerHTML=`
+      <div class="sweep-block-header" onclick="toggleBlock(this)">
+        <div class="sweep-block-dot" style="background:${color}"></div>
+        <div class="sweep-block-name">${meta.name}</div>
+        <div class="sweep-block-meta">
+          <span>${meta.desc}</span>
+        </div>
+        <div class="sweep-block-count">${kwFound} results</div>
+        <div class="sweep-block-chevron">▼</div>
+      </div>
+      <div class="sweep-block-body">
+        ${modChips}
+        <div style="font-size:10px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Query formula</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:var(--mono)">${esc(meta.how)}</div>
+        <div style="font-size:10px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">Example queries sent to Google</div>
+        <div class="formula">${examples}</div>
+      </div>`;
+    container.appendChild(block);
+  });
+}
+
+function toggleBlock(header){
+  const body=header.nextElementSibling;
+  const chev=header.querySelector('.sweep-block-chevron');
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function toggleBreakdown(){
+  const p=$('breakdown-panel');
+  const toggler=p.querySelector('.breakdown-toggle');
+  const blocks=$('sweep-blocks');
+  if(blocks.style.display==='none'){blocks.style.display='';toggler.textContent='hide ▲';}
+  else{blocks.style.display='none';toggler.textContent='show ▼';}
+}
+
+</script>
+</body>
+</html>
