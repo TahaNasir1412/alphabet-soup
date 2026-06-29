@@ -16,7 +16,7 @@
   --red:#ef4444;--rb:rgba(239,68,68,.1);--rb2:rgba(239,68,68,.25);
   --blue:#3b82f6;--bb:rgba(59,130,246,.1);
   --cyan:#06b6d4;--cb:rgba(6,182,212,.1);
-  --pink:#ec4899;--pb:rgba(236,72,153,.1);
+  --orange:#f97316;--ob:rgba(249,115,22,.1);--ob2:rgba(249,115,22,.25);
   --r:8px;--mono:'JetBrains Mono',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -25,23 +25,30 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .sidebar{background:var(--s1);border-right:1px solid var(--border);padding:18px;overflow-y:auto;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:14px}
 .main{padding:24px 28px;overflow-y:auto;max-width:100%}
 
-/* SIDEBAR */
+/* LOGO */
 .logo{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}
 .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),#9333ea);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px}
 .logo-text span{color:var(--accent)}
 .logo-v{font-size:10px;color:var(--dim);margin-left:4px;font-family:var(--mono)}
 
-/* AI STATUS */
-.ai-status{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--s2);font-size:12px}
+/* AI STATUS — shows primary + groq backup */
+.ai-status{border:1px solid var(--border);background:var(--s2);border-radius:var(--r);overflow:hidden}
+.ai-primary{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px}
+.ai-backup{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:11px;border-top:1px solid var(--border);background:var(--s1)}
+.ai-backup.hidden{display:none}
 .ai-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.ai-dot.active{background:var(--green);box-shadow:0 0 6px var(--green)}
-.ai-dot.inactive{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.ai-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.ai-dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.ai-dot.orange{background:var(--orange);box-shadow:0 0 5px var(--orange)}
+.ai-dot.dim{background:var(--dim)}
 .ai-label{flex:1;color:var(--muted)}
 .ai-label strong{color:var(--text);font-weight:500}
-.ai-badge-mini{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px}
-.ai-badge-mini.on{background:var(--gb);color:var(--green);border:1px solid var(--gb2)}
-.ai-badge-mini.off{background:var(--amb);color:var(--amber);border:1px solid var(--amb2)}
+.ai-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px}
+.ai-badge.on{background:var(--gb);color:var(--green);border:1px solid var(--gb2)}
+.ai-badge.fallback{background:var(--ob);color:var(--orange);border:1px solid var(--ob2)}
+.ai-badge.off{background:var(--amb);color:var(--amber);border:1px solid var(--amb2)}
+.ai-badge.backup{background:var(--gb);color:var(--green);border:1px solid var(--gb2);font-size:9px}
 
 /* FORM */
 .field{display:flex;flex-direction:column;gap:5px}
@@ -56,7 +63,7 @@ select option{background:var(--s2)}
 textarea{resize:vertical;min-height:46px;font-size:12px}
 .tip{font-size:10px;color:var(--dim);line-height:1.5;margin-top:2px}
 
-/* SWEEPS GRID */
+/* SWEEPS */
 .sweep-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .stog{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;user-select:none;font-size:11px;color:var(--muted);transition:all .15s}
 .stog:hover{border-color:var(--border2);color:var(--text)}
@@ -64,7 +71,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .stog input{display:none}
 .stog-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 
-/* TOGGLE */
+/* TOGGLES */
 .toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer}
 .tgl{width:30px;height:16px;background:var(--border2);border-radius:8px;position:relative;transition:background .2s;flex-shrink:0}
 .tgl.on{background:var(--accent)}
@@ -77,13 +84,14 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .btn-run:hover{opacity:.88}
 .btn-run:disabled{opacity:.35;cursor:not-allowed}
 .btn-stop{width:100%;padding:8px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;display:none}
+.btn-resume{width:100%;padding:8px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px}
 .btn{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--s2);color:var(--text);transition:all .15s}
 .btn:hover{border-color:var(--border2);background:var(--s3)}
 .btn.a{border-color:var(--ab2);background:var(--ab);color:var(--accent)}
 .btn.a:hover{background:var(--accent);color:white;border-color:var(--accent)}
 .btn.g{border-color:var(--gb2);background:var(--gb);color:var(--green)}
 
-/* MAIN AREA */
+/* MAIN */
 .page-hdr{margin-bottom:20px}
 .page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-bottom:2px}
 .page-sub{color:var(--muted);font-size:12px}
@@ -111,7 +119,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .spinner{width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* RATE LIMIT ALERT */
+/* RATE LIMIT */
 .rl-alert{background:var(--amb);border:1px solid var(--amb2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);display:none;margin-bottom:12px}
 .rl-alert.show{display:flex;align-items:center;gap:8px}
 
@@ -128,6 +136,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .tag-muted{background:var(--s3);color:var(--muted);border:1px solid var(--border)}
 .src-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600}
 .src-badge.ai{background:var(--gb);color:var(--green);border:1px solid var(--gb2)}
+.src-badge.groq{background:var(--ob);color:var(--orange);border:1px solid var(--ob2)}
 .src-badge.rb{background:var(--amb);color:var(--amber);border:1px solid var(--amb2)}
 .src-badge.err{background:var(--rb);color:var(--red);border:1px solid var(--rb2)}
 
@@ -242,11 +251,18 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="logo-text">Alphabet<span>Soup</span><span class="logo-v">v4</span></div>
   </div>
 
-  <!-- AI STATUS -->
+  <!-- AI STATUS — primary + groq backup row -->
   <div class="ai-status" id="ai-status">
-    <div class="ai-dot inactive" id="ai-dot"></div>
-    <div class="ai-label" id="ai-label">Checking AI...</div>
-    <span class="ai-badge-mini off" id="ai-badge">...</span>
+    <div class="ai-primary">
+      <div class="ai-dot amber" id="ai-dot"></div>
+      <div class="ai-label" id="ai-label">Checking AI...</div>
+      <span class="ai-badge off" id="ai-badge">...</span>
+    </div>
+    <div class="ai-backup hidden" id="ai-backup">
+      <div class="ai-dot dim" id="backup-dot"></div>
+      <div class="ai-label" id="backup-label" style="font-size:10px"></div>
+      <span class="ai-badge backup" id="backup-badge"></span>
+    </div>
   </div>
 
   <div class="field">
@@ -359,6 +375,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 
   <button class="btn-run" id="run-btn" onclick="startRun()">⚡ Generate Keywords</button>
   <button class="btn-stop" id="stop-btn" onclick="stopRun()">⏹ Stop</button>
+  <button class="btn-resume" id="resume-btn" onclick="resumeRun()">▶ Resume sweep</button>
 
   <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);font-size:10px;color:var(--dim);line-height:1.7">
     Results appear live. Export CSV → paste into Ahrefs for volume data.<br>
@@ -373,7 +390,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="page-sub">AI-powered Google Autocomplete harvester — any niche, any language, exhaustive coverage</div>
   </div>
 
-  <!-- HOW TO -->
   <div class="howto" id="howto">
     <div class="howto-hdr">
       <div class="howto-title">📖 How to use</div>
@@ -381,20 +397,18 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     </div>
     <div class="howto-steps" id="howto-steps">
       <div class="step"><div class="step-n">STEP 1</div><div class="step-t">Type keyword</div><div class="step-d">Enter the main word/phrase you want to research. Keep it simple.</div></div>
-      <div class="step"><div class="step-n">STEP 2</div><div class="step-t">Pick country & language</div><div class="step-d">Select where your users are and what language they type in. Brazil = Brazil + Portuguese.</div></div>
-      <div class="step"><div class="step-n">STEP 3</div><div class="step-t">Click Generate</div><div class="step-d">AI analyses niche and builds modifier lists. Check the ✅ AI indicator — green means AI is working.</div></div>
-      <div class="step"><div class="step-n">STEP 4</div><div class="step-t">Check Sweep Inspector</div><div class="step-d">See every modifier the tool is using under each sweep tab. Expand any sweep to verify it's using the right modifiers for your niche.</div></div>
-      <div class="step"><div class="step-n">STEP 5</div><div class="step-t">Filter & export</div><div class="step-d">Filter by sweep type or intent. Click any keyword to copy. Export CSV → paste into Ahrefs for search volume.</div></div>
-      <div class="step"><div class="step-n">NOISE TAB</div><div class="step-t">Check noise keywords</div><div class="step-d">Keywords that don't contain your base keyword go here. Usually junk — but worth a quick scan to make sure nothing useful got filtered.</div></div>
+      <div class="step"><div class="step-n">STEP 2</div><div class="step-t">Pick country & language</div><div class="step-d">Select where your users are and what language they type in.</div></div>
+      <div class="step"><div class="step-n">STEP 3</div><div class="step-t">Click Generate</div><div class="step-d">AI analyses niche. Green dot = Gemini. Orange dot = Groq backup. Both understand the full niche context.</div></div>
+      <div class="step"><div class="step-n">STEP 4</div><div class="step-t">Check Sweep Inspector</div><div class="step-d">See every modifier being used. Expand any sweep to verify it's right for your niche.</div></div>
+      <div class="step"><div class="step-n">STEP 5</div><div class="step-t">If Google rate limits</div><div class="step-d">Hit Stop → green Resume button appears → wait 2-3 mins → click Resume to continue from exact position.</div></div>
+      <div class="step"><div class="step-n">NOISE TAB</div><div class="step-t">Check noise keywords</div><div class="step-d">Keywords without your base keyword. Usually irrelevant — quick scan to make sure nothing useful got filtered.</div></div>
     </div>
   </div>
 
-  <!-- RATE LIMIT ALERT -->
   <div class="rl-alert" id="rl-alert">
-    ⚠️ <span>Google may be rate-limiting requests from this server — getting empty results. Try increasing the delay to 1500ms or wait 2-3 minutes then resume.</span>
+    ⚠️ <span>Google rate-limiting — getting empty results. Hit Stop, wait 2-3 mins, then click Resume to continue from where you left off.</span>
   </div>
 
-  <!-- STATUS -->
   <div class="status-bar" id="status-bar">
     <div class="status-top">
       <div class="status-msg"><div class="spinner" id="spinner"></div><span id="status-text">Starting...</span></div>
@@ -404,13 +418,11 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="status-q" id="status-q"></div>
   </div>
 
-  <!-- NICHE CARD -->
   <div class="niche-card" id="niche-card">
     <div class="niche-grid" id="niche-grid"></div>
     <div class="niche-notes" id="niche-notes"></div>
   </div>
 
-  <!-- SWEEP INSPECTOR -->
   <div class="inspector" id="inspector">
     <div class="inspector-hdr">
       <div class="inspector-title">🔬 Sweep Inspector — exactly what's being queried for each sweep</div>
@@ -422,7 +434,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="sweep-list" id="sweep-list"></div>
   </div>
 
-  <!-- TABS -->
   <div id="results-area" style="display:none">
     <div class="tab-bar">
       <button class="tab on" onclick="setTab('relevant',this)">✅ Relevant<span class="tab-badge" id="tb-rel">0</span></button>
@@ -430,7 +441,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       <button class="tab" onclick="setTab('bank',this)">🏦 Keyword Bank<span class="tab-badge" id="tb-bank">0</span></button>
     </div>
 
-    <!-- RELEVANT TAB -->
     <div id="tab-relevant">
       <div class="results-hdr">
         <div class="results-title">Relevant keywords <span id="rel-count" style="color:var(--muted);font-weight:400;font-size:12px"></span></div>
@@ -463,7 +473,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
     </div>
 
-    <!-- NOISE TAB -->
     <div id="tab-noise" style="display:none">
       <div class="results-hdr">
         <div class="results-title">Noise keywords <span style="color:var(--muted);font-weight:400;font-size:12px">(don't contain base keyword — usually irrelevant)</span></div>
@@ -483,7 +492,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
     </div>
 
-    <!-- BANK TAB -->
     <div id="tab-bank" style="display:none">
       <div class="results-hdr">
         <div class="results-title">Keyword Bank <span style="color:var(--muted);font-weight:400;font-size:12px">(accumulates across all runs — persists in browser)</span></div>
@@ -506,13 +514,11 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     </div>
   </div>
 
-  <!-- SEEDS -->
   <div class="seeds-wrap" id="seeds-wrap">
     <div class="seeds-title">🔁 Run these next — related keywords worth sweeping for full coverage</div>
     <div class="seeds" id="seeds"></div>
   </div>
 
-  <!-- EMPTY -->
   <div class="empty" id="empty-state">
     <div class="empty-icon">🔍</div>
     <div class="empty-t">Ready to sweep</div>
@@ -545,36 +551,62 @@ let strictOn=true,saveNoise=true,inspectorView='modifiers',activeTab='relevant';
 let sweepFilterRel=new Set(),currentKw='';
 let bank=JSON.parse(localStorage.getItem('kw_bank')||'[]');
 let intentRules=null;
+let savedSweepState=null; // for resume feature
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.stog').forEach(l=>{
   l.addEventListener('click',()=>{const cb=l.querySelector('input');setTimeout(()=>l.classList.toggle('on',cb.checked),0)});
 });
 document.getElementById('kw-input').addEventListener('keydown',e=>{if(e.key==='Enter')startRun()});
-
-// Check AI status on load
 checkAIStatus();
 renderTable('bank');
 updateBankBadge();
 
+// ── AI STATUS CHECK ───────────────────────────────────────────────────────────
 async function checkAIStatus(){
   try{
     const r=await fetch('/api/status');
     const d=await r.json();
-    const dot=document.getElementById('ai-dot');
-    const lbl=document.getElementById('ai-label');
-    const badge=document.getElementById('ai-badge');
-    if(d.ai_active){
-      dot.className='ai-dot active';
-      lbl.innerHTML=`<strong>${d.provider}</strong> · ${d.model}`;
-      badge.textContent='✓ AI ON';badge.className='ai-badge-mini on';
-    } else {
-      dot.className='ai-dot inactive';
-      lbl.innerHTML='<strong>No AI key</strong> — rule-based fallback';
-      badge.textContent='⚠ FALLBACK';badge.className='ai-badge-mini off';
-    }
+    updateAIStatusUI(d.provider, d.model, d.ai_active, d.groq_available, d.groq_model, false);
   }catch(e){
     document.getElementById('ai-label').textContent='Status unknown';
+  }
+}
+
+function updateAIStatusUI(provider, model, ai_active, groq_available, groq_model, groq_is_active){
+  const dot=document.getElementById('ai-dot');
+  const lbl=document.getElementById('ai-label');
+  const badge=document.getElementById('ai-badge');
+  const backup=document.getElementById('ai-backup');
+  const backupDot=document.getElementById('backup-dot');
+  const backupLbl=document.getElementById('backup-label');
+  const backupBadge=document.getElementById('backup-badge');
+
+  if(groq_is_active){
+    // Groq is actively being used as fallback — show orange
+    dot.className='ai-dot orange';
+    lbl.innerHTML=`<strong>groq</strong> · ${model||'llama-3.3-70b-versatile'} <span style="color:var(--dim);font-size:10px">(Gemini fallback)</span>`;
+    badge.textContent='⚡ GROQ';badge.className='ai-badge fallback';
+  } else if(ai_active){
+    dot.className='ai-dot green';
+    lbl.innerHTML=`<strong>${provider}</strong> · ${model}`;
+    badge.textContent='✓ AI ON';badge.className='ai-badge on';
+  } else {
+    dot.className='ai-dot amber';
+    lbl.innerHTML='<strong>No AI key</strong> — rule-based fallback';
+    badge.textContent='⚠ FALLBACK';badge.className='ai-badge off';
+  }
+
+  // Show Groq backup row if Groq key is set and primary is Gemini
+  if(groq_available && provider==='gemini' && !groq_is_active){
+    backup.classList.remove('hidden');
+    backupDot.className='ai-dot green';
+    backupLbl.innerHTML=`<strong>groq</strong> · ${groq_model||'llama-3.3-70b-versatile'} — backup ready`;
+    backupBadge.textContent='✓ BACKUP';
+  } else if(groq_is_active){
+    backup.classList.add('hidden');
+  } else {
+    backup.classList.add('hidden');
   }
 }
 
@@ -627,12 +659,18 @@ async function startRun(){
   if(!kw){$('kw-input').focus();return;}
   currentKw=kw;
   relevant=[];noise=[];stopFlag=false;running=true;modData=null;intentRules=null;
+  savedSweepState=null;
   sweepFilterRel=new Set();
 
-  $('run-btn').disabled=true;$('stop-btn').style.display='block';
-  $('status-bar').classList.add('show');$('empty-state').style.display='none';
-  $('results-area').style.display='none';$('niche-card').classList.remove('show');
-  $('inspector').classList.remove('show');$('seeds-wrap').classList.remove('show');
+  $('run-btn').disabled=true;
+  $('stop-btn').style.display='block';
+  $('resume-btn').style.display='none';
+  $('status-bar').classList.add('show');
+  $('empty-state').style.display='none';
+  $('results-area').style.display='none';
+  $('niche-card').classList.remove('show');
+  $('inspector').classList.remove('show');
+  $('seeds-wrap').classList.remove('show');
   $('rl-alert').classList.remove('show');
   $('sweep-pills-rel').innerHTML='';
   $('sweep-pills-rel').dataset.rendered='';
@@ -652,6 +690,11 @@ async function startRun(){
     if(modData.intent_rules) intentRules=modData.intent_rules;
     renderNicheCard(modData);
     renderInspector(modData,kw);
+
+    // Update AI status indicator based on which provider actually ran
+    if(modData._active_provider==='groq'||modData._fallback_from==='gemini'){
+      updateAIStatusUI('groq', modData._model, true, false, null, true);
+    }
   }catch(e){
     console.warn('Modifier fetch failed:',e);
     modData={sweeps:{s3_question_prefixes:['how to','why','what is','is','can i'],s3_question_suffixes:['safe','free','working'],s4_platform:['free','online','app'],s5_problem:['not working','alternative'],s6_context:['for beginners','best'],s7_numbers:['2024','2025'],s9_custom:[],s10_wildcard:[`best ${kw}`]}};
@@ -674,25 +717,37 @@ async function startRun(){
     10:{label:'S10_Wild',  queries:m.s10_wildcard||[]},
   };
 
-  // Run sweeps
-  const total=sweeps.length;let done=0;
-  for(const num of sweeps){
-    if(stopFlag)break;
-    const def=DEFS[num];if(!def)continue;
-    done++;
-    const pct=5+Math.round((done/total)*85);
-    setStatus(`${def.label} (${done}/${total}) — ${def.queries.length} queries`,pct);
+  await runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, 0, 0);
+}
 
-    for(const q of def.queries){
-      if(stopFlag)break;
+// ── CORE SWEEP RUNNER (shared by startRun and resumeRun) ──────────────────────
+async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQi){
+  const total=sweeps.length;
+
+  for(let si=startSi; si<sweeps.length; si++){
+    if(stopFlag) break;
+    const num=sweeps[si];
+    const def=DEFS[num];if(!def)continue;
+    const pct=5+Math.round((si/total)*85);
+    setStatus(`${def.label} (${si+1}/${total}) — ${def.queries.length} queries`,pct);
+
+    const qStart = si===startSi ? startQi : 0;
+
+    for(let qi=qStart; qi<def.queries.length; qi++){
+      // Save resume position before each query
+      savedSweepState={sweeps,DEFS,resolvedGeo,lang,delay,startSi:si,startQi:qi};
+
+      if(stopFlag) break;
+
+      const q=def.queries[qi];
       $('status-q').textContent=`→ ${q}`;
       const sugg=await fetchSuggestions(q,resolvedGeo,lang);
       let added=0;
       for(const s of sugg){
-        const isRel=s.toLowerCase().includes(kw.toLowerCase());
+        const isRel=s.toLowerCase().includes(currentKw.toLowerCase());
         if(isRel){
           if(!relevant.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
-            relevant.push({kw:s,sweep:def.label,mod:q.replace(kw,'').trim()||q,intent:'',run:kw});
+            relevant.push({kw:s,sweep:def.label,mod:q.replace(currentKw,'').trim()||q,intent:'',run:currentKw});
             added++;
           }
         } else if(saveNoise){
@@ -707,37 +762,84 @@ async function startRun(){
       }
       await sleep(delay);
     }
-    updateInspectorCounts();
+    if(!stopFlag) updateInspectorCounts();
   }
 
-  // Classify intents
-  setStatus('Classifying intents...',92);
-  const kwList=relevant.map(k=>k.kw);
-  const classified=await classifyKeywords(kwList);
-  relevant.forEach(k=>{if(classified[k.kw])k.intent=classified[k.kw];});
+  if(!stopFlag){
+    // Fully completed — classify and finish
+    setStatus('Classifying intents...',92);
+    const kwList=relevant.map(k=>k.kw);
+    const classified=await classifyKeywords(kwList);
+    relevant.forEach(k=>{if(classified[k.kw])k.intent=classified[k.kw];});
 
-  setStatus(stopFlag?'Stopped':'Complete ✓',100);
-  $('spinner').style.display='none';
-  $('run-btn').disabled=false;$('stop-btn').style.display='none';
-  running=false;
+    setStatus('Complete ✓',100);
+    $('spinner').style.display='none';
+    $('run-btn').disabled=false;
+    $('stop-btn').style.display='none';
+    $('resume-btn').style.display='none';
+    running=false;
+    savedSweepState=null;
 
-  renderTable('relevant');
-  renderTable('noise');
-  renderSeeds(modData);
-  $('results-area').style.display='block';
-  updateBadges();
+    renderTable('relevant');
+    renderTable('noise');
+    renderSeeds(modData);
+    $('results-area').style.display='block';
+    updateBadges();
+  } else {
+    // Stopped mid-sweep — show resume button
+    setStatus(`Stopped — ${relevant.length} keywords saved`,null);
+    $('spinner').style.display='none';
+    $('run-btn').disabled=false;
+    $('stop-btn').style.display='none';
+    $('resume-btn').style.display='flex';
+    running=false;
+    $('results-area').style.display='block';
+    updateBadges();
+  }
 }
 
-function stopRun(){stopFlag=true;$('stop-btn').style.display='none';$('run-btn').disabled=false;}
-function setStatus(msg,pct){$('status-text').textContent=msg;if(pct!=null)$('prog').style.width=pct+'%';}
+// ── STOP & RESUME ─────────────────────────────────────────────────────────────
+function stopRun(){
+  stopFlag=true;
+  $('stop-btn').style.display='none';
+  $('run-btn').disabled=false;
+}
+
+async function resumeRun(){
+  if(!savedSweepState) return;
+  const {sweeps,DEFS,resolvedGeo,lang,delay,startSi,startQi}=savedSweepState;
+
+  stopFlag=false;running=true;
+  $('resume-btn').style.display='none';
+  $('run-btn').disabled=true;
+  $('stop-btn').style.display='block';
+  $('spinner').style.display='inline-block';
+  $('rl-alert').classList.remove('show');
+
+  await runSweeps(sweeps,DEFS,resolvedGeo,lang,delay,startSi,startQi);
+}
+
+function setStatus(msg,pct){
+  $('status-text').textContent=msg;
+  if(pct!=null)$('prog').style.width=pct+'%';
+}
 
 // ── RENDER NICHE CARD ─────────────────────────────────────────────────────────
 function renderNicheCard(d){
   $('niche-card').classList.add('show');
   const src=d._source||'unknown';
-  const srcHtml=src==='rule-based'?`<span class="src-badge rb">⚡ rule-based</span>`:
-    src==='generic-fallback'?`<span class="src-badge err">⚠ generic</span>`:
-    `<span class="src-badge ai">✅ AI · ${d._model||src}</span>`;
+  const ap=d._active_provider||src;
+  let srcHtml='';
+  if(src==='rule-based'){
+    srcHtml=`<span class="src-badge rb">⚡ rule-based</span>`;
+  } else if(ap==='groq'||src==='groq'){
+    srcHtml=`<span class="src-badge groq">⚡ Groq · ${d._model||'llama-3.3-70b'}</span>`;
+    if(d._fallback_from){srcHtml+=` <span style="font-size:9px;color:var(--dim)">(Gemini fallback)</span>`;}
+  } else if(src==='generic-fallback'){
+    srcHtml=`<span class="src-badge err">⚠ generic</span>`;
+  } else {
+    srcHtml=`<span class="src-badge ai">✅ AI · ${d._model||src}</span>`;
+  }
 
   $('niche-grid').innerHTML=`
     <div class="ni"><div class="k">Niche</div><div class="v">${esc(d.niche||'—')} ${srcHtml}</div></div>
@@ -746,16 +848,12 @@ function renderNicheCard(d){
     <div class="ni"><div class="k">What user wants</div><div class="v" style="font-size:11px;color:var(--muted)">${esc(d.intent_summary||'—')}</div></div>
   `;
   $('niche-notes').textContent=d.niche_notes||'';
-  if(d._ai_error){
-    $('niche-notes').textContent+=' ⚠ AI error: '+d._ai_error;
-  }
+  if(d._ai_error){$('niche-notes').textContent+=' ⚠ AI error: '+d._ai_error;}
 }
 
 // ── SWEEP INSPECTOR ───────────────────────────────────────────────────────────
-let inspectorData=null;
 function renderInspector(d,kw){
   $('inspector').classList.add('show');
-  inspectorData={d,kw};
   buildInspector(d,kw);
 }
 
@@ -763,20 +861,18 @@ function buildInspector(d,kw){
   const m=d.sweeps||{};
   const list=$('sweep-list');
   list.innerHTML='';
-
   const modMap={
-    1:{mods:null,           formula:`"${kw}" + a/b/c...z`},
-    2:{mods:null,           formula:`a/b/c...z + "${kw}"`},
-    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])], formula:`"how to ${kw}", "${kw} safe", "${kw} free"...`},
-    4:{mods:m.s4_platform||[], formula:`"${kw}" + [each platform modifier]`},
-    5:{mods:m.s5_problem||[],  formula:`"${kw}" + [each problem modifier]`},
-    6:{mods:m.s6_context||[],  formula:`"${kw}" + [each context modifier]`},
-    7:{mods:m.s7_numbers||[],  formula:`"${kw}" + [each number/version]`},
-    8:{mods:null,              formula:`"${kw}" + aa/ab/ac.../ba/bb...`},
-    9:{mods:m.s9_custom||[],   formula:`[full AI-generated query]`},
+    1:{mods:null,formula:`"${kw}" + a/b/c...z`},
+    2:{mods:null,formula:`a/b/c...z + "${kw}"`},
+    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])],formula:`"how to ${kw}", "${kw} safe"...`},
+    4:{mods:m.s4_platform||[],formula:`"${kw}" + [each platform modifier]`},
+    5:{mods:m.s5_problem||[],formula:`"${kw}" + [each problem modifier]`},
+    6:{mods:m.s6_context||[],formula:`"${kw}" + [each context modifier]`},
+    7:{mods:m.s7_numbers||[],formula:`"${kw}" + [each number/version]`},
+    8:{mods:null,formula:`"${kw}" + aa/ab/ac...`},
+    9:{mods:m.s9_custom||[],formula:`[full AI-generated query]`},
     10:{mods:m.s10_wildcard||[],formula:`watch "${kw}", download "${kw}"...`},
   };
-
   const selectedSweeps=getSelectedSweeps();
 
   for(let num=1;num<=10;num++){
@@ -784,27 +880,20 @@ function buildInspector(d,kw){
     const mp=modMap[num];
     const color=SC[num]||'#888';
     const isSelected=selectedSweeps.includes(num);
-
     const item=document.createElement('div');
-    item.className='sweep-item';
-    item.id=`sinsp-${num}`;
+    item.className='sweep-item';item.id=`sinsp-${num}`;
 
     const modsHtml=mp.mods
-      ? (mp.mods.length?mp.mods.map(m=>`<span class="mod-chip" style="background:${color}14;color:${color};border-color:${color}30">${esc(m)}</span>`).join('')
-          :'<span class="empty-sweep">No modifiers generated</span>')
-      : `<span class="empty-sweep">Auto-generated (a,b,c...z or aa,ab...)</span>`;
+      ?(mp.mods.length?mp.mods.map(m=>`<span class="mod-chip" style="background:${color}14;color:${color};border-color:${color}30">${esc(m)}</span>`).join('')
+        :'<span class="empty-sweep">No modifiers generated</span>')
+      :`<span class="empty-sweep">Auto-generated (a,b,c...z or aa,ab...)</span>`;
 
     const examplesHtml=mp.mods&&mp.mods.length
-      ? mp.mods.slice(0,4).map(mod=>{
-          const q=num===9||num===10?mod:`${kw} ${mod}`;
-          return`<div class="formula-ex">
-            <span class="formula-base">${esc(kw)}</span>
-            ${num!==9&&num!==10?`<span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(mod)}</span>`:''}
-            <span class="formula-arrow">→</span>
-            <span class="formula-result">${esc(q)}</span>
-          </div>`;
-        }).join('')
-      : `<div class="formula-ex"><span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">a/b/c...</span><span class="formula-arrow">→</span><span class="formula-result">${esc(kw)} a, ${esc(kw)} b...</span></div>`;
+      ?mp.mods.slice(0,4).map(mod=>{
+        const q=num===9||num===10?mod:`${kw} ${mod}`;
+        return`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span>${num!==9&&num!==10?`<span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(mod)}</span>`:''}<span class="formula-arrow">→</span><span class="formula-result">${esc(q)}</span></div>`;
+      }).join('')
+      :`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">a/b/c...</span><span class="formula-arrow">→</span><span class="formula-result">${esc(kw)} a, ${esc(kw)} b...</span></div>`;
 
     item.innerHTML=`
       <div class="sweep-hdr" onclick="toggleSweepBody(${num})">
@@ -833,20 +922,15 @@ function buildInspector(d,kw){
 }
 
 function toggleSweepBody(num){
-  const body=$(`sbody-${num}`);
-  const chev=$(`chev-${num}`);
+  const body=$(`sbody-${num}`);const chev=$(`chev-${num}`);
   if(!body)return;
-  body.classList.toggle('open');
-  chev.classList.toggle('open');
+  body.classList.toggle('open');chev.classList.toggle('open');
 }
 
 function updateInspectorCounts(){
   for(let i=1;i<=10;i++){
-    const el=$(`sc-count-${i}`);
-    if(!el)continue;
-    const label=SN[i];
-    const count=relevant.filter(k=>k.sweep===label).length;
-    el.textContent=`${count} results`;
+    const el=$(`sc-count-${i}`);if(!el)continue;
+    el.textContent=`${relevant.filter(k=>k.sweep===SN[i]).length} results`;
   }
 }
 
@@ -858,27 +942,20 @@ function setInspectorView(view,btn){
 
 // ── TABLE RENDERING ───────────────────────────────────────────────────────────
 function renderTable(tab){
-  if(tab==='relevant') renderRelevant();
-  else if(tab==='noise') renderNoise();
-  else if(tab==='bank') renderBank();
+  if(tab==='relevant')renderRelevant();
+  else if(tab==='noise')renderNoise();
+  else if(tab==='bank')renderBank();
 }
 
 function renderRelevant(){
   const filter=$('filter-rel')?.value?.toLowerCase()||'';
   const intentF=$('intent-filter')?.value||'';
-  const tbody=$('tbody-rel');
-
   const filtered=relevant.filter(k=>{
-    const mt=k.kw.toLowerCase().includes(filter);
-    const mi=!intentF||k.intent===intentF;
-    const ms=sweepFilterRel.size===0||sweepFilterRel.has(k.sweep);
-    return mt&&mi&&ms;
+    return k.kw.toLowerCase().includes(filter)&&(!intentF||k.intent===intentF)&&(sweepFilterRel.size===0||sweepFilterRel.has(k.sweep));
   });
-
   $('rel-count').textContent=`(${filtered.length} of ${relevant.length})`;
   $('tb-rel').textContent=relevant.length;
 
-  // Render sweep pills
   const pillEl=$('sweep-pills-rel');
   if(!pillEl.dataset.rendered&&relevant.length){
     pillEl.dataset.rendered='1';
@@ -889,17 +966,12 @@ function renderRelevant(){
       const btn=document.createElement('span');
       btn.className='sp on';btn.textContent=id;
       btn.style.cssText=`color:${color};border-color:${color}40;background:${color}12`;
-      btn.onclick=()=>{
-        btn.classList.toggle('on');
-        if(!btn.classList.contains('on'))sweepFilterRel.add(id);
-        else sweepFilterRel.delete(id);
-        renderRelevant();
-      };
+      btn.onclick=()=>{btn.classList.toggle('on');if(!btn.classList.contains('on'))sweepFilterRel.add(id);else sweepFilterRel.delete(id);renderRelevant();};
       pillEl.appendChild(btn);
     });
   }
 
-  tbody.innerHTML=filtered.map((k,i)=>{
+  $('tbody-rel').innerHTML=filtered.map((k,i)=>{
     const num=+k.sweep.split('_')[0].replace('S','');
     const color=SC[num]||'#888';
     const ic=IC[k.intent]||'int-unknown';
@@ -922,12 +994,7 @@ function renderNoise(){
   $('tbody-noise').innerHTML=filtered.map((k,i)=>{
     const num=+k.sweep.split('_')[0].replace('S','');
     const color=SC[num]||'#888';
-    return`<tr>
-      <td style="color:var(--dim);font-size:10px">${i+1}</td>
-      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td>
-      <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
-      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
-    </tr>`;
+    return`<tr><td style="color:var(--dim);font-size:10px">${i+1}</td><td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td><td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td><td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td></tr>`;
   }).join('');
 }
 
@@ -938,13 +1005,7 @@ function renderBank(){
   $('bank-info').textContent=`${bank.length} total · ${[...new Set(bank.map(k=>k.run))].length} keyword runs`;
   $('tbody-bank').innerHTML=filtered.map((k,i)=>{
     const ic=IC[k.intent]||'int-unknown';
-    return`<tr>
-      <td style="color:var(--dim);font-size:10px">${i+1}</td>
-      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td>
-      <td>${k.intent?`<span class="intent-badge ${ic}">${k.intent}</span>`:''}</td>
-      <td style="font-size:10px;color:var(--muted);font-family:var(--mono)">${esc(k.run||'')}</td>
-      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
-    </tr>`;
+    return`<tr><td style="color:var(--dim);font-size:10px">${i+1}</td><td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td><td>${k.intent?`<span class="intent-badge ${ic}">${k.intent}</span>`:''}</td><td style="font-size:10px;color:var(--muted);font-family:var(--mono)">${esc(k.run||'')}</td><td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td></tr>`;
   }).join('');
 }
 
@@ -952,12 +1013,9 @@ function renderBank(){
 function addToBank(){
   const existing=new Set(bank.map(k=>k.kw.toLowerCase()));
   let added=0;
-  relevant.forEach(k=>{
-    if(!existing.has(k.kw.toLowerCase())){bank.push(k);added++;}
-  });
+  relevant.forEach(k=>{if(!existing.has(k.kw.toLowerCase())){bank.push(k);added++;}});
   localStorage.setItem('kw_bank',JSON.stringify(bank));
-  updateBankBadge();
-  renderBank();
+  updateBankBadge();renderBank();
   if(added>0)alert(`Added ${added} new keywords to bank (${bank.length} total)`);
 }
 
@@ -1018,4 +1076,3 @@ function copyKw(kw){navigator.clipboard.writeText(kw).catch(()=>{});}
 </script>
 </body>
 </html>
-
