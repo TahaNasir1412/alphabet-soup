@@ -1,0 +1,10 @@
+# render.yaml — deploy this on Render.com free tier
+services:
+  - type: web
+    name: alphabet-soup
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
