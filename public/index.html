@@ -587,7 +587,7 @@ function toggleHowto(){
   const v=s.style.display==='none';
   s.style.display=v?'':'none';t.textContent=v?'hide ▲':'show ▼';
 }
-function getSelectedSweeps(){return[...document.querySelectorAll('.sweep-toggles input:checked')].map(i=>+i.value)}
+function getSelectedSweeps(){return[...document.querySelectorAll('#sweep-toggles input:checked')].map(i=>+i.value)}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
