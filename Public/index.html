@@ -1002,7 +1002,7 @@ function getDataset(tab){
 
 function exportCSV(tab){
   const data=getDataset(tab);
-  const rows=['Keyword,Intent,Sweep,Run',...data.map(k=>`"${(k.kw||'').replace(/"/g,'""')}","${k.intent||''}","${k.sweep||''}","${k.run||''"`)];
+  const rows=['Keyword,Intent,Sweep,Run',...data.map(k=>`"${(k.kw||'').replace(/"/g,'""')}","${k.intent||''}","${k.sweep||''}","${k.run||''}"`)];
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
   a.download=`keywords_${currentKw.replace(/\s+/g,'_')}_${tab}.csv`;
