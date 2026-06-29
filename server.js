@@ -9,7 +9,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── PROVIDERS ─────────────────────────────────────────────────────────────────
-// Set ONE env var: GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
 const PROVIDERS = {
   gemini:    { key: process.env.GEMINI_API_KEY,     model: 'gemini-2.5-flash' },
   anthropic: { key: process.env.ANTHROPIC_API_KEY,  url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-4-6' },
@@ -24,13 +23,16 @@ function getActiveProvider() {
   return null;
 }
 
-// ── STATUS ENDPOINT (for UI health check) ─────────────────────────────────────
+// ── STATUS ENDPOINT ───────────────────────────────────────────────────────────
+// Returns primary provider + whether groq is available as backup
 app.get('/api/status', (req, res) => {
   const provider = getActiveProvider();
   res.json({
     provider: provider || 'none',
     model: provider ? PROVIDERS[provider].model : null,
     ai_active: !!provider,
+    groq_available: !!PROVIDERS.groq.key,
+    groq_model: PROVIDERS.groq.model,
   });
 });
 
@@ -237,7 +239,6 @@ function ruleBased(keyword, outputLang) {
   const base = keyword;
   const lang = outputLang || 'en';
 
-  // Extended modifier packs per language
   const PACKS = {
     streaming_en: {
       s4: ['apk','android','ios','iphone','ipad','pc','windows','mac','laptop','chromebook','firestick','android tv','smart tv','kodi','web','browser','online','download','install','mod apk','premium apk','no ads','apkpure','uptodown','mirror link','telegram','play store'],
@@ -273,7 +274,6 @@ function ruleBased(keyword, outputLang) {
     },
   };
 
-  // Niche detection
   const niches = [
     { test: /apk|mod apk|cracked|premium unlocked|stream|anime|movie|series|episode|cartoon|dubbed|ott|netflix|crunchyroll|hotstar|jio|zee5|hulu|disney|watch online/, label:'Streaming / APK', intent:'streaming', geo:'in', pack:'streaming_en' },
     { test: /plumber|dentist|lawyer|restaurant|salon|barber|mechanic|electrician|cleaner|locksmith|doctor|gym|spa|hotel|near me/, label:'Local Service', intent:'local', geo:'us', pack:'local_en' },
@@ -317,13 +317,12 @@ function ruleBased(keyword, outputLang) {
     },
     suggested_clarifications: [{ question:'What is this keyword?', options:['A streaming platform/app','A product to buy','A local service','A topic to write about'] }],
     recursive_seeds: [`${keyword} app`,`${keyword} alternative`,`best ${keyword}`,`free ${keyword}`,`${keyword} review`,`${keyword} not working`,`${keyword} download`],
-    niche_notes: 'Rule-based fallback active — AI key not configured or call failed. Add GEMINI_API_KEY for accurate niche-specific modifiers. Noise keywords (without base keyword) are saved in the Noise tab.',
+    niche_notes: 'Rule-based fallback active — AI key not configured or call failed. Add GEMINI_API_KEY for accurate niche-specific modifiers.',
     _source: 'rule-based',
   };
 }
 
 // ── GOOGLE AUTOCOMPLETE PROXY ─────────────────────────────────────────────────
-// Tracks consecutive empty responses to detect rate limiting
 let emptyStreak = 0;
 const RATE_LIMIT_THRESHOLD = 5;
 
@@ -346,11 +345,8 @@ app.get('/api/suggest', async (req, res) => {
     } catch(e) { attempts++; }
   }
 
-  if (suggestions.length === 0) {
-    emptyStreak++;
-  } else {
-    emptyStreak = 0;
-  }
+  if (suggestions.length === 0) emptyStreak++;
+  else emptyStreak = 0;
 
   res.json({
     suggestions,
@@ -374,18 +370,22 @@ app.post('/api/modifiers', async (req, res) => {
 
   try {
     let raw = '';
-    if (provider === 'gemini')    raw = await callGemini(prompt);
+    if (provider === 'gemini')         raw = await callGemini(prompt);
     else if (provider === 'anthropic') raw = await callAnthropic(prompt);
-    else if (provider === 'groq')  raw = await callGroq(prompt);
-    else if (provider === 'openai') raw = await callOpenAI(prompt);
+    else if (provider === 'groq')      raw = await callGroq(prompt);
+    else if (provider === 'openai')    raw = await callOpenAI(prompt);
 
     const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     parsed._source = provider;
     parsed._model = PROVIDERS[provider].model;
+    parsed._active_provider = provider; // tells UI which provider actually ran
     res.json(parsed);
+
   } catch(e) {
     console.error(`${provider} failed: ${e.message}`);
+
+    // Gemini failed → try Groq as automatic fallback
     if (provider === 'gemini' && PROVIDERS.groq.key) {
       try {
         console.log('Gemini failed — trying Groq as fallback...');
@@ -394,14 +394,19 @@ app.post('/api/modifiers', async (req, res) => {
         const parsed = JSON.parse(clean);
         parsed._source = 'groq';
         parsed._model = PROVIDERS.groq.model;
+        parsed._active_provider = 'groq';
+        parsed._fallback_from = 'gemini'; // tells UI a fallback happened
         return res.json(parsed);
       } catch(e2) {
         console.error(`Groq also failed: ${e2.message}`);
       }
     }
+
+    // Both failed → rule-based
     const fb = ruleBased(keyword, output_lang);
     fb._source = 'rule-based';
     fb._ai_error = e.message;
+    fb._active_provider = 'rule-based';
     res.json(fb);
   }
 });
@@ -424,9 +429,7 @@ app.post('/api/classify', async (req, res) => {
   const classified = keywords.map(kw => {
     const kl = kw.toLowerCase();
     for (const [intent, signals] of Object.entries(rules)) {
-      if (signals.some(s => kl.includes(s))) {
-        return { kw, intent };
-      }
+      if (signals.some(s => kl.includes(s))) return { kw, intent };
     }
     return { kw, intent: 'informational' };
   });
@@ -439,5 +442,6 @@ app.listen(PORT, () => {
   const p = getActiveProvider();
   console.log(`\nAlphabet Soup v4 → http://localhost:${PORT}`);
   console.log(`AI Provider : ${p ? `${p} (${PROVIDERS[p].model})` : 'NONE — rule-based active'}`);
+  console.log(`Groq backup : ${PROVIDERS.groq.key ? `ready (${PROVIDERS.groq.model})` : 'not configured'}`);
   console.log(`─────────────────────────────────────────\n`);
 });
