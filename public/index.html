@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Alphabet Soup v4 — Keyword Sweep Tool</title>
+<title>Alphabet Soup v5 — Keyword Sweep Tool</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
@@ -25,32 +25,30 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .sidebar{background:var(--s1);border-right:1px solid var(--border);padding:18px;overflow-y:auto;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:14px}
 .main{padding:24px 28px;overflow-y:auto;max-width:100%}
 
-/* LOGO */
 .logo{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border)}
 .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),#9333ea);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px}
 .logo-text span{color:var(--accent)}
 .logo-v{font-size:10px;color:var(--dim);margin-left:4px;font-family:var(--mono)}
 
-/* AI STATUS — shows primary + groq backup */
-.ai-status{border:1px solid var(--border);background:var(--s2);border-radius:var(--r);overflow:hidden}
-.ai-primary{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px}
-.ai-backup{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:11px;border-top:1px solid var(--border);background:var(--s1)}
-.ai-backup.hidden{display:none}
+.ai-status{border:1px solid var(--border);background:var(--s2);border-radius:var(--r);overflow:hidden;flex-shrink:0}
+.ai-row{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:11.5px}
+.ai-row + .ai-row{border-top:1px solid var(--border)}
 .ai-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .ai-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
 .ai-dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
 .ai-dot.orange{background:var(--orange);box-shadow:0 0 5px var(--orange)}
+.ai-dot.red{background:var(--red);box-shadow:0 0 5px var(--red)}
 .ai-dot.dim{background:var(--dim)}
-.ai-label{flex:1;color:var(--muted)}
-.ai-label strong{color:var(--text);font-weight:500}
-.ai-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px}
+.ai-label{flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-label strong{color:var(--text);font-weight:600}
+.ai-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .ai-badge.on{background:var(--gb);color:var(--green);border:1px solid var(--gb2)}
 .ai-badge.fallback{background:var(--ob);color:var(--orange);border:1px solid var(--ob2)}
 .ai-badge.off{background:var(--amb);color:var(--amber);border:1px solid var(--amb2)}
-.ai-badge.backup{background:var(--gb);color:var(--green);border:1px solid var(--gb2);font-size:9px}
+.ai-badge.err{background:var(--rb);color:var(--red);border:1px solid var(--rb2)}
+.ai-err-detail{font-size:9px;color:var(--dim);padding:0 10px 6px;font-family:var(--mono);word-break:break-all}
 
-/* FORM */
 .field{display:flex;flex-direction:column;gap:5px}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
@@ -63,7 +61,6 @@ select option{background:var(--s2)}
 textarea{resize:vertical;min-height:46px;font-size:12px}
 .tip{font-size:10px;color:var(--dim);line-height:1.5;margin-top:2px}
 
-/* SWEEPS */
 .sweep-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .stog{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;user-select:none;font-size:11px;color:var(--muted);transition:all .15s}
 .stog:hover{border-color:var(--border2);color:var(--text)}
@@ -71,7 +68,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .stog input{display:none}
 .stog-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 
-/* TOGGLES */
 .toggle-row{display:flex;align-items:center;gap:8px;cursor:pointer}
 .tgl{width:30px;height:16px;background:var(--border2);border-radius:8px;position:relative;transition:background .2s;flex-shrink:0}
 .tgl.on{background:var(--accent)}
@@ -79,7 +75,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .tgl.on::after{transform:translateX(14px)}
 .tgl-lbl{font-size:11px;color:var(--muted)}
 
-/* BUTTONS */
 .btn-run{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent),#9333ea);color:white;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:7px}
 .btn-run:hover{opacity:.88}
 .btn-run:disabled{opacity:.35;cursor:not-allowed}
@@ -91,12 +86,15 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .btn.a:hover{background:var(--accent);color:white;border-color:var(--accent)}
 .btn.g{border-color:var(--gb2);background:var(--gb);color:var(--green)}
 
-/* MAIN */
+.session-banner{background:linear-gradient(135deg,var(--ab),rgba(147,51,234,.08));border:1px solid var(--ab2);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;display:none;align-items:center;gap:10px;font-size:12px}
+.session-banner.show{display:flex}
+.session-banner .info{flex:1;color:var(--muted)}
+.session-banner .info strong{color:var(--text)}
+
 .page-hdr{margin-bottom:20px}
 .page-title{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-bottom:2px}
 .page-sub{color:var(--muted);font-size:12px}
 
-/* HOW TO */
 .howto{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px}
 .howto-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .howto-title{font-size:12px;font-weight:600;color:var(--accent)}
@@ -107,7 +105,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .step-t{font-size:12px;font-weight:600;margin-bottom:2px}
 .step-d{font-size:11px;color:var(--muted);line-height:1.5}
 
-/* STATUS */
 .status-bar{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;display:none}
 .status-bar.show{display:block}
 .status-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -119,17 +116,16 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .spinner{width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* RATE LIMIT */
 .rl-alert{background:var(--amb);border:1px solid var(--amb2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);display:none;margin-bottom:12px}
 .rl-alert.show{display:flex;align-items:center;gap:8px}
 
-/* NICHE CARD */
 .niche-card{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:none}
 .niche-card.show{display:block}
 .niche-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:10px}
 .ni .k{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
 .ni .v{font-size:13px;font-weight:500}
 .niche-notes{font-size:11px;color:var(--muted);line-height:1.6;padding-top:10px;border-top:1px solid var(--border)}
+.niche-notes .err{color:var(--red);display:block;margin-top:4px;font-family:var(--mono);font-size:10px}
 .tag{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;margin:1px}
 .tag-a{background:var(--ab);color:var(--accent);border:1px solid var(--ab2)}
 .tag-g{background:var(--gb);color:var(--green);border:1px solid var(--gb2)}
@@ -140,14 +136,10 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .src-badge.rb{background:var(--amb);color:var(--amber);border:1px solid var(--amb2)}
 .src-badge.err{background:var(--rb);color:var(--red);border:1px solid var(--rb2)}
 
-/* SWEEP INSPECTOR */
 .inspector{background:var(--s2);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;display:none;overflow:hidden}
 .inspector.show{display:block}
 .inspector-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--s3)}
 .inspector-title{font-size:12px;font-weight:600}
-.inspector-tabs{display:flex;gap:2px;background:var(--s1);padding:2px;border-radius:6px}
-.itab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:var(--muted);transition:all .15s;border:none;background:transparent}
-.itab.on{background:var(--s2);color:var(--text);font-weight:500}
 .sweep-list{padding:0}
 .sweep-item{border-bottom:1px solid var(--border)}
 .sweep-item:last-child{border-bottom:none}
@@ -168,22 +160,21 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .mod-chip{font-size:11px;padding:3px 8px;border-radius:4px;font-family:var(--mono);border:1px solid;cursor:default}
 .formula-box{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-top:8px}
 .formula-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
-.formula-ex{font-size:11px;font-family:var(--mono);color:var(--muted);padding:2px 0;display:flex;align-items:center;gap:6px}
+.formula-ex{font-size:11px;font-family:var(--mono);color:var(--muted);padding:2px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .formula-base{color:var(--accent);background:var(--ab);padding:1px 5px;border-radius:3px}
 .formula-plus{color:var(--dim)}
 .formula-mod{padding:1px 5px;border-radius:3px;border:1px solid}
 .formula-arrow{color:var(--dim)}
 .formula-result{color:var(--text);font-weight:500}
 .empty-sweep{font-size:11px;color:var(--dim);font-style:italic}
+.natural-note{font-size:10px;color:var(--green);background:var(--gb);border:1px solid var(--gb2);border-radius:4px;padding:4px 8px;margin-top:8px}
 
-/* TABS */
-.tab-bar{display:flex;gap:2px;background:var(--s2);padding:3px;border-radius:8px;margin-bottom:14px;border:1px solid var(--border)}
+.tab-bar{display:flex;gap:2px;background:var(--s2);padding:3px;border-radius:8px;margin-bottom:14px;border:1px solid var(--border);flex-wrap:wrap}
 .tab{font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;color:var(--muted);transition:all .15s;border:none;background:transparent;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif}
 .tab.on{background:var(--s3);color:var(--text);font-weight:500}
 .tab-badge{font-size:10px;padding:1px 5px;border-radius:3px;background:var(--s4);color:var(--muted);font-family:var(--mono)}
 .tab.on .tab-badge{background:var(--ab);color:var(--accent)}
 
-/* RESULTS */
 .results-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
 .results-title{font-size:14px;font-weight:600}
 .results-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -194,10 +185,9 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .sp{font-size:10px;font-weight:600;padding:3px 7px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--mono)}
 .sp.on{border-color:currentColor}
 
-/* TABLE */
-.tbl-wrap{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto}
+.tbl-wrap{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto;max-height:600px;overflow-y:auto}
 .kw-table{width:100%;border-collapse:collapse;min-width:600px}
-.kw-table th{background:var(--s3);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);padding:7px 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;white-space:nowrap}
+.kw-table th{background:var(--s3);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);padding:7px 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:1}
 .kw-table td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px}
 .kw-table tr:last-child td{border-bottom:none}
 .kw-table tr:hover td{background:var(--s2)}
@@ -206,12 +196,15 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .sw-badge{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;font-family:var(--mono);white-space:nowrap}
 .intent-badge{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;white-space:nowrap}
 .built-from{font-size:10px;color:var(--dim);font-family:var(--mono)}
-.built-base{color:var(--accent)}
 .built-mod{padding:1px 4px;border-radius:2px;border:1px solid}
 .copy-cell{color:var(--dim);cursor:pointer;font-size:10px;opacity:0;transition:opacity .15s;white-space:nowrap}
 .kw-table tr:hover .copy-cell{opacity:1}
+.qlog-status{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;font-family:var(--mono)}
+.qlog-status.ok{background:var(--gb);color:var(--green)}
+.qlog-status.empty{background:var(--amb);color:var(--amber)}
+.qlog-status.filtered{background:var(--ob);color:var(--orange)}
+.qlog-status.err{background:var(--rb);color:var(--red)}
 
-/* SEEDS */
 .seeds-wrap{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-top:14px;display:none}
 .seeds-wrap.show{display:block}
 .seeds-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px}
@@ -219,12 +212,10 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 .seed{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--ab2);background:var(--ab);color:var(--accent);cursor:pointer;transition:all .15s}
 .seed:hover{background:var(--accent);color:white}
 
-/* EMPTY */
 .empty{text-align:center;padding:50px 20px;color:var(--muted)}
 .empty-icon{font-size:40px;margin-bottom:10px;opacity:.4;filter:grayscale(1)}
 .empty-t{font-size:14px;font-weight:500;color:var(--text);margin-bottom:5px}
 
-/* INTENT COLORS */
 .int-nav{background:#3b82f61a;color:#3b82f6;border:1px solid #3b82f630}
 .int-dl{background:#7c6fe01a;color:#7c6fe0;border:1px solid #7c6fe030}
 .int-stream{background:#06b6d41a;color:#06b6d4;border:1px solid #06b6d430}
@@ -244,25 +235,24 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 <body>
 <div class="app">
 
-<!-- ═══ SIDEBAR ═══ -->
 <aside class="sidebar">
   <div class="logo">
     <div class="logo-icon">🍜</div>
-    <div class="logo-text">Alphabet<span>Soup</span><span class="logo-v">v4</span></div>
+    <div class="logo-text">Alphabet<span>Soup</span><span class="logo-v">v5</span></div>
   </div>
 
-  <!-- AI STATUS — primary + groq backup row -->
   <div class="ai-status" id="ai-status">
-    <div class="ai-primary">
+    <div class="ai-row">
       <div class="ai-dot amber" id="ai-dot"></div>
       <div class="ai-label" id="ai-label">Checking AI...</div>
       <span class="ai-badge off" id="ai-badge">...</span>
     </div>
-    <div class="ai-backup hidden" id="ai-backup">
+    <div class="ai-row" id="ai-backup-row" style="display:none">
       <div class="ai-dot dim" id="backup-dot"></div>
-      <div class="ai-label" id="backup-label" style="font-size:10px"></div>
+      <div class="ai-label" id="backup-label"></div>
       <span class="ai-badge backup" id="backup-badge"></span>
     </div>
+    <div class="ai-err-detail" id="ai-err-detail" style="display:none"></div>
   </div>
 
   <div class="field">
@@ -345,7 +335,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       <label class="stog on" title="Audience & context modifiers"><input type="checkbox" value="6" checked><div class="stog-dot"></div>S6 Context</label>
       <label class="stog on" title="Numbers, versions, years"><input type="checkbox" value="7" checked><div class="stog-dot"></div>S7 Numbers</label>
       <label class="stog" title="AA AB AC... deep long-tail (slow)"><input type="checkbox" value="8"><div class="stog-dot"></div>S8 Deep</label>
-      <label class="stog on" title="AI-generated niche queries"><input type="checkbox" value="9" checked><div class="stog-dot"></div>S9 AI Custom</label>
+      <label class="stog on" title="AI-generated NATURAL queries — most valuable sweep"><input type="checkbox" value="9" checked><div class="stog-dot"></div>S9 AI Natural</label>
       <label class="stog on" title="watch/download/best/free + keyword"><input type="checkbox" value="10" checked><div class="stog-dot"></div>S10 Wildcard</label>
     </div>
   </div>
@@ -383,11 +373,16 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
   </div>
 </aside>
 
-<!-- ═══ MAIN ═══ -->
 <main class="main">
   <div class="page-hdr">
     <div class="page-title">Alphabet Soup 🍜</div>
     <div class="page-sub">AI-powered Google Autocomplete harvester — any niche, any language, exhaustive coverage</div>
+  </div>
+
+  <div class="session-banner" id="session-banner">
+    <div class="info">📋 <strong>Previous session found:</strong> <span id="session-info"></span></div>
+    <button class="btn a" onclick="restoreSession()">Restore</button>
+    <button class="btn" onclick="dismissSession()">Dismiss</button>
   </div>
 
   <div class="howto" id="howto">
@@ -398,10 +393,10 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="howto-steps" id="howto-steps">
       <div class="step"><div class="step-n">STEP 1</div><div class="step-t">Type keyword</div><div class="step-d">Enter the main word/phrase you want to research. Keep it simple.</div></div>
       <div class="step"><div class="step-n">STEP 2</div><div class="step-t">Pick country & language</div><div class="step-d">Select where your users are and what language they type in.</div></div>
-      <div class="step"><div class="step-n">STEP 3</div><div class="step-t">Click Generate</div><div class="step-d">AI analyses niche. Green dot = Gemini. Orange dot = Groq backup. Both understand the full niche context.</div></div>
-      <div class="step"><div class="step-n">STEP 4</div><div class="step-t">Check Sweep Inspector</div><div class="step-d">See every modifier being used. Expand any sweep to verify it's right for your niche.</div></div>
-      <div class="step"><div class="step-n">STEP 5</div><div class="step-t">If Google rate limits</div><div class="step-d">Hit Stop → green Resume button appears → wait 2-3 mins → click Resume to continue from exact position.</div></div>
-      <div class="step"><div class="step-n">NOISE TAB</div><div class="step-t">Check noise keywords</div><div class="step-d">Keywords without your base keyword. Usually irrelevant — quick scan to make sure nothing useful got filtered.</div></div>
+      <div class="step"><div class="step-n">STEP 3</div><div class="step-t">Click Generate</div><div class="step-d">AI analyses niche. Sidebar dot shows green for Gemini, orange for Groq backup.</div></div>
+      <div class="step"><div class="step-n">STEP 4</div><div class="step-t">S9 AI Natural is the key sweep</div><div class="step-d">Unlike other sweeps, S9 sends full natural phrases — not robotic keyword+modifier glue.</div></div>
+      <div class="step"><div class="step-n">STEP 5</div><div class="step-t">Check Query Log tab</div><div class="step-d">See exactly what Google returned for every single query — nothing is hidden.</div></div>
+      <div class="step"><div class="step-n">IF INTERRUPTED</div><div class="step-t">Resume or reload</div><div class="step-d">Stop → Resume button appears. Or just reload the page — your last session auto-restores.</div></div>
     </div>
   </div>
 
@@ -426,10 +421,6 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
   <div class="inspector" id="inspector">
     <div class="inspector-hdr">
       <div class="inspector-title">🔬 Sweep Inspector — exactly what's being queried for each sweep</div>
-      <div class="inspector-tabs">
-        <button class="itab on" onclick="setInspectorView('modifiers',this)">Modifiers</button>
-        <button class="itab" onclick="setInspectorView('formula',this)">Query formula</button>
-      </div>
     </div>
     <div class="sweep-list" id="sweep-list"></div>
   </div>
@@ -438,6 +429,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     <div class="tab-bar">
       <button class="tab on" onclick="setTab('relevant',this)">✅ Relevant<span class="tab-badge" id="tb-rel">0</span></button>
       <button class="tab" onclick="setTab('noise',this)">🗑 Noise<span class="tab-badge" id="tb-noise">0</span></button>
+      <button class="tab" onclick="setTab('qlog',this)">📊 Query Log<span class="tab-badge" id="tb-qlog">0</span></button>
       <button class="tab" onclick="setTab('bank',this)">🏦 Keyword Bank<span class="tab-badge" id="tb-bank">0</span></button>
     </div>
 
@@ -475,7 +467,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 
     <div id="tab-noise" style="display:none">
       <div class="results-hdr">
-        <div class="results-title">Noise keywords <span style="color:var(--muted);font-weight:400;font-size:12px">(don't contain base keyword — usually irrelevant)</span></div>
+        <div class="results-title">Noise keywords <span style="color:var(--muted);font-weight:400;font-size:12px">(don't match core entity tokens — usually irrelevant)</span></div>
         <div class="results-actions">
           <button class="btn" onclick="exportCSV('noise')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('noise')">📋 Copy all</button>
@@ -488,6 +480,30 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
         <table class="kw-table">
           <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th></th></tr></thead>
           <tbody id="tbody-noise"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-qlog" style="display:none">
+      <div class="results-hdr">
+        <div class="results-title">Query Log <span style="color:var(--muted);font-weight:400;font-size:12px">— every query sent to Google, what came back, what was kept</span></div>
+        <div class="results-actions">
+          <button class="btn" onclick="exportQueryLog()">⬇ CSV</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-qlog" placeholder="Filter queries..." oninput="renderTable('qlog')" style="max-width:200px">
+        <select class="filter-select" id="qlog-status-filter" onchange="renderTable('qlog')">
+          <option value="">All statuses</option>
+          <option value="ok">Has results</option>
+          <option value="empty">Empty (Google returned nothing)</option>
+          <option value="filtered">Filtered out (got results, none kept)</option>
+        </select>
+      </div>
+      <div class="tbl-wrap">
+        <table class="kw-table">
+          <thead><tr><th>#</th><th>Query sent</th><th>Sweep</th><th>Google returned</th><th>Kept relevant</th><th>Status</th></tr></thead>
+          <tbody id="tbody-qlog"></tbody>
         </table>
       </div>
     </div>
@@ -522,38 +538,37 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
   <div class="empty" id="empty-state">
     <div class="empty-icon">🔍</div>
     <div class="empty-t">Ready to sweep</div>
-    <div class="empty-icon" style="font-size:14px;margin-top:6px;opacity:.6">Enter a keyword on the left → hit Generate<br>AI detects niche, builds modifiers, sweeps Google, classifies intent</div>
+    <div class="empty-icon" style="font-size:14px;margin-top:6px;opacity:.6">Enter a keyword on the left → hit Generate<br>AI detects niche, builds modifiers + natural queries, sweeps Google, classifies intent</div>
   </div>
 </main>
 </div>
 
 <script>
-// ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const SC={1:'#7c6fe0',2:'#06b6d4',3:'#10b981',4:'#f59e0b',5:'#ef4444',6:'#8b5cf6',7:'#ec4899',8:'#14b8a6',9:'#f97316',10:'#84cc16'};
-const SN={1:'S1_Suffix',2:'S2_Prefix',3:'S3_Question',4:'S4_Platform',5:'S5_Problem',6:'S6_Context',7:'S7_Number',8:'S8_Double',9:'S9_Custom',10:'S10_Wild'};
+const SN={1:'S1_Suffix',2:'S2_Prefix',3:'S3_Question',4:'S4_Platform',5:'S5_Problem',6:'S6_Context',7:'S7_Number',8:'S8_Double',9:'S9_Natural',10:'S10_Wild'};
 const SMETA={
   1:{name:'S1 — Suffix A to Z',desc:'Appends every letter a–z after your keyword'},
   2:{name:'S2 — Prefix A to Z',desc:'Prepends every letter a–z before your keyword'},
   3:{name:'S3 — Questions',desc:'Question words before keyword + qualifier words after'},
-  4:{name:'S4 — Platform',desc:'AI-generated platform, device, access modifiers'},
-  5:{name:'S5 — Problems',desc:'AI-generated failure, error, alternative modifiers'},
-  6:{name:'S6 — Context',desc:'AI-generated audience, language, situation modifiers'},
+  4:{name:'S4 — Platform',desc:'AI-generated platform, device, access modifiers (glued)'},
+  5:{name:'S5 — Problems',desc:'AI-generated failure, error, alternative modifiers (glued)'},
+  6:{name:'S6 — Context',desc:'AI-generated audience, language, situation modifiers (glued)'},
   7:{name:'S7 — Numbers',desc:'Version numbers, years, prices, episode numbers'},
   8:{name:'S8 — Deep (Double-char)',desc:'Two-letter combos aa/ab/ac... for deep long-tail'},
-  9:{name:'S9 — AI Custom',desc:'Complete search phrases built specifically for this niche'},
+  9:{name:'S9 — AI Natural',desc:'Complete NATURAL phrases — not concatenation. Word order varies realistically. Most valuable sweep.'},
   10:{name:'S10 — Wildcard',desc:'Action-first intent variants: watch/download/best + keyword'},
 };
 const IC={'navigational':'int-nav','download':'int-dl','streaming':'int-stream','informational':'int-info','commercial':'int-comm','transactional':'int-trans','local':'int-local','troubleshoot':'int-trouble'};
 
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let relevant=[],noise=[],stopFlag=false,running=false,modData=null;
-let strictOn=true,saveNoise=true,inspectorView='modifiers',activeTab='relevant';
+let relevant=[],noise=[],queryLog=[],stopFlag=false,running=false,modData=null;
+let strictOn=true,saveNoise=true,activeTab='relevant';
 let sweepFilterRel=new Set(),currentKw='';
 let bank=JSON.parse(localStorage.getItem('kw_bank')||'[]');
-let intentRules=null;
-let savedSweepState=null; // for resume feature
+let intentRules=null,coreTokens=[];
+let savedSweepState=null;
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+const SESSION_KEY='as_session_v5';
+
 document.querySelectorAll('.stog').forEach(l=>{
   l.addEventListener('click',()=>{const cb=l.querySelector('input');setTimeout(()=>l.classList.toggle('on',cb.checked),0)});
 });
@@ -561,56 +576,57 @@ document.getElementById('kw-input').addEventListener('keydown',e=>{if(e.key==='E
 checkAIStatus();
 renderTable('bank');
 updateBankBadge();
+checkForSavedSession();
 
-// ── AI STATUS CHECK ───────────────────────────────────────────────────────────
+// ── AI STATUS ─────────────────────────────────────────────────────────────────
 async function checkAIStatus(){
   try{
     const r=await fetch('/api/status');
     const d=await r.json();
-    updateAIStatusUI(d.provider, d.model, d.ai_active, d.groq_available, d.groq_model, false);
+    updateAIStatusUI({provider:d.provider,model:d.model,ai_active:d.ai_active,groq_available:d.groq_available,groq_model:d.groq_model,gemini_available:d.gemini_available,gemini_model:d.gemini_model});
   }catch(e){
     document.getElementById('ai-label').textContent='Status unknown';
+    document.getElementById('ai-dot').className='ai-dot red';
   }
 }
 
-function updateAIStatusUI(provider, model, ai_active, groq_available, groq_model, groq_is_active){
-  const dot=document.getElementById('ai-dot');
-  const lbl=document.getElementById('ai-label');
-  const badge=document.getElementById('ai-badge');
-  const backup=document.getElementById('ai-backup');
-  const backupDot=document.getElementById('backup-dot');
-  const backupLbl=document.getElementById('backup-label');
-  const backupBadge=document.getElementById('backup-badge');
+function updateAIStatusUI(opts){
+  const {provider,model,ai_active,groq_available,groq_model,active_is_fallback,fallback_from,err}=opts;
+  const dot=$('ai-dot'),lbl=$('ai-label'),badge=$('ai-badge');
+  const backupRow=$('ai-backup-row'),backupDot=$('backup-dot'),backupLbl=$('backup-label'),backupBadge=$('backup-badge');
+  const errDetail=$('ai-err-detail');
 
-  if(groq_is_active){
-    // Groq is actively being used as fallback — show orange
+  if(active_is_fallback){
     dot.className='ai-dot orange';
-    lbl.innerHTML=`<strong>groq</strong> · ${model||'llama-3.3-70b-versatile'} <span style="color:var(--dim);font-size:10px">(Gemini fallback)</span>`;
-    badge.textContent='⚡ GROQ';badge.className='ai-badge fallback';
+    lbl.innerHTML=`<strong>groq</strong> · ${model||'llama-3.3-70b-versatile'}`;
+    badge.textContent='⚡ FALLBACK';badge.className='ai-badge fallback';
+    backupRow.style.display='flex';
+    backupDot.className='ai-dot red';
+    backupLbl.innerHTML=`<strong>${fallback_from||'gemini'}</strong> failed this call`;
+    backupBadge.textContent='✗ FAILED';backupBadge.className='ai-badge err';
+    if(err){errDetail.style.display='block';errDetail.textContent=err;}
   } else if(ai_active){
     dot.className='ai-dot green';
     lbl.innerHTML=`<strong>${provider}</strong> · ${model}`;
     badge.textContent='✓ AI ON';badge.className='ai-badge on';
+    if(groq_available && provider==='gemini'){
+      backupRow.style.display='flex';
+      backupDot.className='ai-dot green';
+      backupLbl.innerHTML=`<strong>groq</strong> · ${groq_model||'llama-3.3-70b'} — backup ready`;
+      backupBadge.textContent='✓ READY';backupBadge.className='ai-badge backup on';
+    } else {
+      backupRow.style.display='none';
+    }
+    errDetail.style.display='none';
   } else {
     dot.className='ai-dot amber';
     lbl.innerHTML='<strong>No AI key</strong> — rule-based fallback';
     badge.textContent='⚠ FALLBACK';badge.className='ai-badge off';
-  }
-
-  // Show Groq backup row if Groq key is set and primary is Gemini
-  if(groq_available && provider==='gemini' && !groq_is_active){
-    backup.classList.remove('hidden');
-    backupDot.className='ai-dot green';
-    backupLbl.innerHTML=`<strong>groq</strong> · ${groq_model||'llama-3.3-70b-versatile'} — backup ready`;
-    backupBadge.textContent='✓ BACKUP';
-  } else if(groq_is_active){
-    backup.classList.add('hidden');
-  } else {
-    backup.classList.add('hidden');
+    backupRow.style.display='none';
+    if(err){errDetail.style.display='block';errDetail.textContent=err;}
   }
 }
 
-// ── TOGGLES ───────────────────────────────────────────────────────────────────
 function toggleStrict(){strictOn=!strictOn;document.getElementById('strict-tgl').classList.toggle('on',strictOn)}
 function toggleNoise(){saveNoise=!saveNoise;document.getElementById('noise-tgl').classList.toggle('on',saveNoise)}
 function toggleHowto(){
@@ -624,6 +640,18 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+// ── SMARTER RELEVANCE MATCHING — uses core_entity_tokens not literal substring ──
+function isRelevant(suggestion, kw, tokens){
+  const s=suggestion.toLowerCase();
+  // fallback: literal substring match always counts
+  if(s.includes(kw.toLowerCase())) return true;
+  // token-based: all core tokens must appear somewhere in the suggestion, any order
+  if(tokens && tokens.length){
+    return tokens.every(t=>s.includes(t.toLowerCase()));
+  }
+  return false;
+}
+
 // ── FETCH ─────────────────────────────────────────────────────────────────────
 async function fetchSuggestions(q,geo,lang){
   try{
@@ -631,8 +659,8 @@ async function fetchSuggestions(q,geo,lang){
     const d=await r.json();
     if(d.rate_limited){$('rl-alert').classList.add('show');}
     else{$('rl-alert').classList.remove('show');}
-    return d.suggestions||[];
-  }catch{return[]}
+    return d;
+  }catch(e){return {suggestions:[],raw_count:0,error:e.message};}
 }
 
 async function fetchModifiers(kw,hint,lang){
@@ -653,14 +681,64 @@ async function classifyKeywords(keywords){
   }catch{return{}}
 }
 
+// ── SESSION PERSISTENCE ────────────────────────────────────────────────────────
+function saveSession(){
+  try{
+    const session={
+      currentKw,relevant,noise,queryLog,modData,coreTokens,
+      timestamp:Date.now(),
+      complete: !running
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }catch(e){console.warn('Session save failed (likely too large):',e.message);}
+}
+
+function checkForSavedSession(){
+  try{
+    const raw=localStorage.getItem(SESSION_KEY);
+    if(!raw)return;
+    const session=JSON.parse(raw);
+    if(!session.currentKw || !session.relevant?.length) return;
+    const ageMin=Math.round((Date.now()-session.timestamp)/60000);
+    $('session-info').textContent=`"${session.currentKw}" — ${session.relevant.length} relevant, ${session.noise?.length||0} noise (${ageMin<1?'just now':ageMin+' min ago'})`;
+    $('session-banner').classList.add('show');
+    window._pendingSession=session;
+  }catch(e){}
+}
+
+function restoreSession(){
+  const s=window._pendingSession;
+  if(!s)return;
+  currentKw=s.currentKw;
+  relevant=s.relevant||[];
+  noise=s.noise||[];
+  queryLog=s.queryLog||[];
+  modData=s.modData;
+  coreTokens=s.coreTokens||[];
+  $('kw-input').value=currentKw;
+  $('session-banner').classList.remove('show');
+  $('empty-state').style.display='none';
+  if(modData){renderNicheCard(modData);renderInspector(modData,currentKw);renderSeeds(modData);}
+  $('results-area').style.display='block';
+  $('sweep-pills-rel').innerHTML='';delete $('sweep-pills-rel').dataset.rendered;
+  renderTable('relevant');renderTable('noise');renderTable('qlog');
+  updateBadges();
+}
+
+function dismissSession(){
+  $('session-banner').classList.remove('show');
+  localStorage.removeItem(SESSION_KEY);
+}
+
 // ── MAIN RUN ──────────────────────────────────────────────────────────────────
 async function startRun(){
   const kw=$('kw-input').value.trim();
   if(!kw){$('kw-input').focus();return;}
   currentKw=kw;
-  relevant=[];noise=[];stopFlag=false;running=true;modData=null;intentRules=null;
+  relevant=[];noise=[];queryLog=[];stopFlag=false;running=true;modData=null;intentRules=null;coreTokens=[];
   savedSweepState=null;
   sweepFilterRel=new Set();
+  $('session-banner').classList.remove('show');
 
   $('run-btn').disabled=true;
   $('stop-btn').style.display='block';
@@ -674,7 +752,7 @@ async function startRun(){
   $('rl-alert').classList.remove('show');
   $('sweep-pills-rel').innerHTML='';
   $('sweep-pills-rel').dataset.rendered='';
-  $('tbody-rel').innerHTML='';$('tbody-noise').innerHTML='';
+  $('tbody-rel').innerHTML='';$('tbody-noise').innerHTML='';$('tbody-qlog').innerHTML='';
   $('spinner').style.display='inline-block';
 
   const geo=$('geo-select').value;
@@ -688,16 +766,21 @@ async function startRun(){
   try{
     modData=await fetchModifiers(kw,hint,lang);
     if(modData.intent_rules) intentRules=modData.intent_rules;
+    if(modData.core_entity_tokens) coreTokens=modData.core_entity_tokens;
     renderNicheCard(modData);
     renderInspector(modData,kw);
 
-    // Update AI status indicator based on which provider actually ran
-    if(modData._active_provider==='groq'||modData._fallback_from==='gemini'){
-      updateAIStatusUI('groq', modData._model, true, false, null, true);
+    if(modData._active_provider==='groq'||modData._fallback_from){
+      updateAIStatusUI({provider:'groq',model:modData._model,ai_active:true,active_is_fallback:true,fallback_from:modData._fallback_from,err:modData._primary_error});
+    } else if(modData._active_provider==='rule-based'){
+      updateAIStatusUI({ai_active:false,err:modData._ai_error});
+    } else {
+      updateAIStatusUI({provider:modData._active_provider,model:modData._model,ai_active:true,groq_available:true});
     }
   }catch(e){
     console.warn('Modifier fetch failed:',e);
-    modData={sweeps:{s3_question_prefixes:['how to','why','what is','is','can i'],s3_question_suffixes:['safe','free','working'],s4_platform:['free','online','app'],s5_problem:['not working','alternative'],s6_context:['for beginners','best'],s7_numbers:['2024','2025'],s9_custom:[],s10_wildcard:[`best ${kw}`]}};
+    modData={sweeps:{s3_question_prefixes:['how to','why','what is','is','can i'],s3_question_suffixes:['safe','free','working'],s4_platform:['free','online','app'],s5_problem:['not working','alternative'],s6_context:['for beginners','best'],s7_numbers:['2024','2025'],s9_custom:[],s10_wildcard:[`best ${kw}`]},core_entity_tokens:kw.split(' ')};
+    coreTokens=kw.split(' ');
   }
 
   const resolvedGeo=geo==='auto'?(modData.geo_recommendation||'us'):geo;
@@ -713,16 +796,17 @@ async function startRun(){
     6:{label:'S6_Context', queries:(m.s6_context||[]).map(p=>`${kw} ${p}`)},
     7:{label:'S7_Number',  queries:(m.s7_numbers||['2024','2025']).map(n=>`${kw} ${n}`)},
     8:{label:'S8_Double',  queries:(()=>{const q=[];'abcdefghij'.split('').forEach(a=>'abcdefghij'.split('').forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
-    9:{label:'S9_Custom',  queries:m.s9_custom||[]},
+    9:{label:'S9_Natural', queries:m.s9_custom||[]},
     10:{label:'S10_Wild',  queries:m.s10_wildcard||[]},
   };
 
   await runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, 0, 0);
 }
 
-// ── CORE SWEEP RUNNER (shared by startRun and resumeRun) ──────────────────────
+// ── CORE SWEEP RUNNER ──────────────────────────────────────────────────────────
 async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQi){
   const total=sweeps.length;
+  let sinceLastSave=0;
 
   for(let si=startSi; si<sweeps.length; si++){
     if(stopFlag) break;
@@ -734,39 +818,56 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
     const qStart = si===startSi ? startQi : 0;
 
     for(let qi=qStart; qi<def.queries.length; qi++){
-      // Save resume position before each query
       savedSweepState={sweeps,DEFS,resolvedGeo,lang,delay,startSi:si,startQi:qi};
 
       if(stopFlag) break;
 
       const q=def.queries[qi];
       $('status-q').textContent=`→ ${q}`;
-      const sugg=await fetchSuggestions(q,resolvedGeo,lang);
-      let added=0;
+      const result=await fetchSuggestions(q,resolvedGeo,lang);
+      const sugg=result.suggestions||[];
+      let added=0,filtered=0;
+
       for(const s of sugg){
-        const isRel=s.toLowerCase().includes(currentKw.toLowerCase());
-        if(isRel){
+        const rel=isRelevant(s, currentKw, coreTokens);
+        if(rel){
           if(!relevant.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
             relevant.push({kw:s,sweep:def.label,mod:q.replace(currentKw,'').trim()||q,intent:'',run:currentKw});
             added++;
           }
-        } else if(saveNoise){
-          if(!noise.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
-            noise.push({kw:s,sweep:def.label});
+        } else {
+          filtered++;
+          if(saveNoise){
+            if(!noise.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
+              noise.push({kw:s,sweep:def.label});
+            }
           }
         }
       }
+
+      // Log every query for full transparency
+      let status='ok';
+      if(sugg.length===0) status='empty';
+      else if(added===0) status='filtered';
+      queryLog.push({
+        query:q, sweep:def.label, raw_count:sugg.length, kept_count:added,
+        status, error:result.error||null
+      });
+
       if(added>0){
         $('status-cnt').textContent=`${relevant.length} relevant · ${noise.length} noise`;
         renderTable('relevant');
       }
+
+      sinceLastSave++;
+      if(sinceLastSave>=15){ saveSession(); sinceLastSave=0; }
+
       await sleep(delay);
     }
     if(!stopFlag) updateInspectorCounts();
   }
 
   if(!stopFlag){
-    // Fully completed — classify and finish
     setStatus('Classifying intents...',92);
     const kwList=relevant.map(k=>k.kw);
     const classified=await classifyKeywords(kwList);
@@ -782,11 +883,12 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
 
     renderTable('relevant');
     renderTable('noise');
+    renderTable('qlog');
     renderSeeds(modData);
     $('results-area').style.display='block';
     updateBadges();
+    saveSession();
   } else {
-    // Stopped mid-sweep — show resume button
     setStatus(`Stopped — ${relevant.length} keywords saved`,null);
     $('spinner').style.display='none';
     $('run-btn').disabled=false;
@@ -795,10 +897,11 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
     running=false;
     $('results-area').style.display='block';
     updateBadges();
+    renderTable('qlog');
+    saveSession();
   }
 }
 
-// ── STOP & RESUME ─────────────────────────────────────────────────────────────
 function stopRun(){
   stopFlag=true;
   $('stop-btn').style.display='none';
@@ -834,9 +937,7 @@ function renderNicheCard(d){
     srcHtml=`<span class="src-badge rb">⚡ rule-based</span>`;
   } else if(ap==='groq'||src==='groq'){
     srcHtml=`<span class="src-badge groq">⚡ Groq · ${d._model||'llama-3.3-70b'}</span>`;
-    if(d._fallback_from){srcHtml+=` <span style="font-size:9px;color:var(--dim)">(Gemini fallback)</span>`;}
-  } else if(src==='generic-fallback'){
-    srcHtml=`<span class="src-badge err">⚠ generic</span>`;
+    if(d._fallback_from){srcHtml+=` <span style="font-size:9px;color:var(--dim)">(${d._fallback_from} fallback)</span>`;}
   } else {
     srcHtml=`<span class="src-badge ai">✅ AI · ${d._model||src}</span>`;
   }
@@ -847,8 +948,10 @@ function renderNicheCard(d){
     <div class="ni"><div class="k">Market · Geo</div><div class="v">${esc(d.primary_market||'—')} <span class="tag tag-muted">${d.geo_recommendation||'—'}</span></div></div>
     <div class="ni"><div class="k">What user wants</div><div class="v" style="font-size:11px;color:var(--muted)">${esc(d.intent_summary||'—')}</div></div>
   `;
-  $('niche-notes').textContent=d.niche_notes||'';
-  if(d._ai_error){$('niche-notes').textContent+=' ⚠ AI error: '+d._ai_error;}
+  let notesHtml=esc(d.niche_notes||'');
+  if(d._ai_error){notesHtml+=`<span class="err">⚠ AI error: ${esc(d._ai_error)}</span>`;}
+  if(d._primary_error){notesHtml+=`<span class="err">⚠ Primary provider error: ${esc(d._primary_error)}</span>`;}
+  $('niche-notes').innerHTML=notesHtml;
 }
 
 // ── SWEEP INSPECTOR ───────────────────────────────────────────────────────────
@@ -862,16 +965,16 @@ function buildInspector(d,kw){
   const list=$('sweep-list');
   list.innerHTML='';
   const modMap={
-    1:{mods:null,formula:`"${kw}" + a/b/c...z`},
-    2:{mods:null,formula:`a/b/c...z + "${kw}"`},
-    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])],formula:`"how to ${kw}", "${kw} safe"...`},
-    4:{mods:m.s4_platform||[],formula:`"${kw}" + [each platform modifier]`},
-    5:{mods:m.s5_problem||[],formula:`"${kw}" + [each problem modifier]`},
-    6:{mods:m.s6_context||[],formula:`"${kw}" + [each context modifier]`},
-    7:{mods:m.s7_numbers||[],formula:`"${kw}" + [each number/version]`},
-    8:{mods:null,formula:`"${kw}" + aa/ab/ac...`},
-    9:{mods:m.s9_custom||[],formula:`[full AI-generated query]`},
-    10:{mods:m.s10_wildcard||[],formula:`watch "${kw}", download "${kw}"...`},
+    1:{mods:null,formula:`"${kw}" + a/b/c...z`,natural:false},
+    2:{mods:null,formula:`a/b/c...z + "${kw}"`,natural:false},
+    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])],formula:`"how to ${kw}", "${kw} safe"...`,natural:false},
+    4:{mods:m.s4_platform||[],formula:`"${kw}" + [each platform modifier]`,natural:false},
+    5:{mods:m.s5_problem||[],formula:`"${kw}" + [each problem modifier]`,natural:false},
+    6:{mods:m.s6_context||[],formula:`"${kw}" + [each context modifier]`,natural:false},
+    7:{mods:m.s7_numbers||[],formula:`"${kw}" + [each number/version]`,natural:false},
+    8:{mods:null,formula:`"${kw}" + aa/ab/ac...`,natural:false},
+    9:{mods:m.s9_custom||[],formula:`[full AI-generated NATURAL query, NOT glued]`,natural:true},
+    10:{mods:m.s10_wildcard||[],formula:`watch "${kw}", download "${kw}"...`,natural:false},
   };
   const selectedSweeps=getSelectedSweeps();
 
@@ -889,9 +992,9 @@ function buildInspector(d,kw){
       :`<span class="empty-sweep">Auto-generated (a,b,c...z or aa,ab...)</span>`;
 
     const examplesHtml=mp.mods&&mp.mods.length
-      ?mp.mods.slice(0,4).map(mod=>{
-        const q=num===9||num===10?mod:`${kw} ${mod}`;
-        return`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span>${num!==9&&num!==10?`<span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(mod)}</span>`:''}<span class="formula-arrow">→</span><span class="formula-result">${esc(q)}</span></div>`;
+      ?mp.mods.slice(0,6).map(mod=>{
+        const q=mp.natural?mod:`${kw} ${mod}`;
+        return`<div class="formula-ex">${mp.natural?'':`<span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(mod)}</span><span class="formula-arrow">→</span>`}<span class="formula-result">${esc(q)}</span></div>`;
       }).join('')
       :`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">a/b/c...</span><span class="formula-arrow">→</span><span class="formula-result">${esc(kw)} a, ${esc(kw)} b...</span></div>`;
 
@@ -901,15 +1004,16 @@ function buildInspector(d,kw){
         <div class="sweep-name" style="color:${isSelected?color:SC[num]+'88'}">${meta.name}</div>
         <div class="sweep-desc">${meta.desc}</div>
         <div class="sweep-meta">
-          ${mp.mods?`<span class="sweep-count" style="color:${color}">${mp.mods.length} modifiers</span>`:'<span class="sweep-count">A-Z auto</span>'}
+          ${mp.mods?`<span class="sweep-count" style="color:${color}">${mp.mods.length} ${mp.natural?'phrases':'modifiers'}</span>`:'<span class="sweep-count">A-Z auto</span>'}
           <span class="sweep-count" id="sc-count-${num}">0 results</span>
           ${!isSelected?'<span class="tag tag-muted">skipped</span>':''}
         </div>
         <div class="sweep-chevron" id="chev-${num}">▼</div>
       </div>
       <div class="sweep-body" id="sbody-${num}">
+        ${mp.natural?'<div class="natural-note">✓ These are complete natural phrases written by AI — not keyword+modifier concatenation. Word order varies realistically.</div>':''}
         <div class="mod-section">
-          <div class="mod-section-title">${num===9||num===10?'Complete queries':'Modifiers'} (${mp.mods?mp.mods.length:'26 auto'})</div>
+          <div class="mod-section-title">${mp.natural?'Complete natural queries':'Modifiers'} (${mp.mods?mp.mods.length:'26 auto'})</div>
           <div class="mod-chips">${modsHtml}</div>
         </div>
         <div class="formula-box">
@@ -934,17 +1038,12 @@ function updateInspectorCounts(){
   }
 }
 
-function setInspectorView(view,btn){
-  inspectorView=view;
-  document.querySelectorAll('.itab').forEach(t=>t.classList.remove('on'));
-  btn.classList.add('on');
-}
-
 // ── TABLE RENDERING ───────────────────────────────────────────────────────────
 function renderTable(tab){
   if(tab==='relevant')renderRelevant();
   else if(tab==='noise')renderNoise();
   else if(tab==='bank')renderBank();
+  else if(tab==='qlog')renderQueryLog();
 }
 
 function renderRelevant(){
@@ -998,6 +1097,29 @@ function renderNoise(){
   }).join('');
 }
 
+function renderQueryLog(){
+  const filter=$('filter-qlog')?.value?.toLowerCase()||'';
+  const statusF=$('qlog-status-filter')?.value||'';
+  const filtered=queryLog.filter(q=>{
+    return q.query.toLowerCase().includes(filter)&&(!statusF||q.status===statusF);
+  });
+  $('tb-qlog').textContent=queryLog.length;
+  $('tbody-qlog').innerHTML=filtered.map((q,i)=>{
+    const num=+q.sweep.split('_')[0].replace('S','');
+    const color=SC[num]||'#888';
+    const statusClass=q.error?'err':q.status;
+    const statusLabel=q.error?'ERROR':q.status==='ok'?'OK':q.status==='empty'?'EMPTY':'FILTERED';
+    return`<tr>
+      <td style="color:var(--dim);font-size:10px">${i+1}</td>
+      <td class="built-from">${esc(q.query)}</td>
+      <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${q.sweep}</span></td>
+      <td style="font-family:var(--mono);font-size:11px">${q.raw_count}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--green)">${q.kept_count}</td>
+      <td><span class="qlog-status ${statusClass}">${statusLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
 function renderBank(){
   const filter=$('filter-bank')?.value?.toLowerCase()||'';
   const filtered=bank.filter(k=>k.kw.toLowerCase().includes(filter));
@@ -1026,14 +1148,14 @@ function clearBank(){
 }
 
 function updateBankBadge(){$('tb-bank').textContent=bank.length;}
-function updateBadges(){$('tb-rel').textContent=relevant.length;$('tb-noise').textContent=noise.length;updateBankBadge();}
+function updateBadges(){$('tb-rel').textContent=relevant.length;$('tb-noise').textContent=noise.length;$('tb-qlog').textContent=queryLog.length;updateBankBadge();}
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab,btn){
   activeTab=tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   btn.classList.add('on');
-  ['relevant','noise','bank'].forEach(t=>$(`tab-${t}`).style.display=t===tab?'block':'none');
+  ['relevant','noise','qlog','bank'].forEach(t=>$(`tab-${t}`).style.display=t===tab?'block':'none');
 }
 
 // ── SEEDS ─────────────────────────────────────────────────────────────────────
@@ -1064,6 +1186,14 @@ function exportCSV(tab){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
   a.download=`keywords_${currentKw.replace(/\s+/g,'_')}_${tab}.csv`;
+  a.click();
+}
+
+function exportQueryLog(){
+  const rows=['Query,Sweep,Raw Returned,Kept Relevant,Status,Error',...queryLog.map(q=>`"${q.query.replace(/"/g,'""')}","${q.sweep}",${q.raw_count},${q.kept_count},"${q.status}","${(q.error||'').replace(/"/g,'""')}"`)];
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download=`querylog_${currentKw.replace(/\s+/g,'_')}.csv`;
   a.click();
 }
 
