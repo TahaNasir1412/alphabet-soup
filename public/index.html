@@ -426,14 +426,42 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
   </div>
 
   <div id="results-area" style="display:none">
+    <div class="session-banner" id="sort-ai-banner">
+      <div class="info">✅ <strong>Sweep complete.</strong> Everything Google returned is sitting in the Collected tab, untouched. Click below to have AI sort it into Relevant / Review using its understanding of this niche.</div>
+      <button class="btn-run" id="sort-ai-btn" onclick="sortWithAI()" style="width:auto;padding:8px 16px">🤖 Sort with AI</button>
+    </div>
+    <div class="session-banner" id="sort-result-note" style="display:none;background:var(--gb);border-color:var(--gb2)"></div>
+
     <div class="tab-bar">
-      <button class="tab on" onclick="setTab('relevant',this)">✅ Relevant<span class="tab-badge" id="tb-rel">0</span></button>
+      <button class="tab on" onclick="setTab('collected',this)">📦 Collected<span class="tab-badge" id="tb-collected">0</span></button>
+      <button class="tab" onclick="setTab('relevant',this)">✅ Relevant<span class="tab-badge" id="tb-rel">0</span></button>
+      <button class="tab" onclick="setTab('review',this)">🔎 Review<span class="tab-badge" id="tb-review">0</span></button>
+      <button class="tab" id="filtered-tab-btn" onclick="setTab('filtered',this)" style="display:none">🎯 Filtered<span class="tab-badge" id="tb-filtered">0</span></button>
       <button class="tab" onclick="setTab('noise',this)">🗑 Noise<span class="tab-badge" id="tb-noise">0</span></button>
       <button class="tab" onclick="setTab('qlog',this)">📊 Query Log<span class="tab-badge" id="tb-qlog">0</span></button>
       <button class="tab" onclick="setTab('bank',this)">🏦 Keyword Bank<span class="tab-badge" id="tb-bank">0</span></button>
     </div>
 
-    <div id="tab-relevant">
+    <div id="tab-collected">
+      <div class="results-hdr">
+        <div class="results-title">Collected <span style="color:var(--muted);font-weight:400;font-size:12px">— everything Google returned during the sweep, completely untouched. Nothing is filtered here.</span></div>
+        <div class="results-actions">
+          <button class="btn" onclick="exportCSV('collected')">⬇ CSV</button>
+          <button class="btn a" onclick="copyAll('collected')">📋 Copy all</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-collected" placeholder="Filter..." oninput="renderTable('collected')" style="max-width:160px">
+      </div>
+      <div class="tbl-wrap">
+        <table class="kw-table">
+          <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <tbody id="tbody-collected"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-relevant" style="display:none">
       <div class="results-hdr">
         <div class="results-title">Relevant keywords <span id="rel-count" style="color:var(--muted);font-weight:400;font-size:12px"></span></div>
         <div class="results-actions">
@@ -465,9 +493,50 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
     </div>
 
+    <div id="tab-review" style="display:none">
+      <div class="results-hdr">
+        <div class="results-title">Review <span style="color:var(--muted);font-weight:400;font-size:12px">— AI sorted these as needing a closer look. Nothing here was discarded; mark manually or run a second AI pass.</span></div>
+        <div class="results-actions">
+          <button class="btn" onclick="exportCSV('review')">⬇ CSV</button>
+          <button class="btn a" onclick="copyAll('review')">📋 Copy all</button>
+          <button class="btn g" onclick="bulkMoveReviewToRelevant()">→ Mark selected as Relevant</button>
+          <button class="btn" id="filter-ai-btn" onclick="filterReviewWithAI()" style="border-color:var(--ob2);background:var(--ob);color:var(--orange)">🤖 Filter with AI</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-review" placeholder="Filter review..." oninput="renderTable('review')" style="max-width:160px">
+      </div>
+      <div class="tbl-wrap">
+        <table class="kw-table">
+          <thead><tr><th><input type="checkbox" id="review-select-all" onchange="toggleSelectAllReview(this)"></th><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <tbody id="tbody-review"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-filtered" style="display:none">
+      <div class="results-hdr">
+        <div class="results-title">Filtered <span style="color:var(--muted);font-weight:400;font-size:12px">— AI's second-pass picks from the Review tab. Original Review list is untouched; verify these before using.</span></div>
+        <div class="results-actions">
+          <button class="btn" onclick="exportCSV('filtered')">⬇ CSV</button>
+          <button class="btn a" onclick="copyAll('filtered')">📋 Copy all</button>
+          <button class="btn g" onclick="bulkMoveFilteredToRelevant()">→ Move all to Relevant</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-filtered" placeholder="Filter..." oninput="renderTable('filtered')" style="max-width:160px">
+      </div>
+      <div class="tbl-wrap">
+        <table class="kw-table">
+          <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <tbody id="tbody-filtered"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="tab-noise" style="display:none">
       <div class="results-hdr">
-        <div class="results-title">Noise keywords <span style="color:var(--muted);font-weight:400;font-size:12px">(don't match core entity tokens — usually irrelevant)</span></div>
+        <div class="results-title">Noise keywords <span style="color:var(--muted);font-weight:400;font-size:12px">(manually marked off-topic — moved here from Review)</span></div>
         <div class="results-actions">
           <button class="btn" onclick="exportCSV('noise')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('noise')">📋 Copy all</button>
@@ -495,9 +564,8 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
         <input type="text" id="filter-qlog" placeholder="Filter queries..." oninput="renderTable('qlog')" style="max-width:200px">
         <select class="filter-select" id="qlog-status-filter" onchange="renderTable('qlog')">
           <option value="">All statuses</option>
-          <option value="ok">Has results</option>
+          <option value="ok">Returned results</option>
           <option value="empty">Empty (Google returned nothing)</option>
-          <option value="filtered">Filtered out (got results, none kept)</option>
         </select>
       </div>
       <div class="tbl-wrap">
@@ -560,7 +628,8 @@ const SMETA={
 };
 const IC={'navigational':'int-nav','download':'int-dl','streaming':'int-stream','informational':'int-info','commercial':'int-comm','transactional':'int-trans','local':'int-local','troubleshoot':'int-trouble'};
 
-let relevant=[],noise=[],queryLog=[],stopFlag=false,running=false,modData=null;
+let collected=[],relevant=[],noise=[],review=[],filteredTab=[],queryLog=[],stopFlag=false,running=false,modData=null;
+let sortDone=false;
 let strictOn=true,saveNoise=true,activeTab='relevant';
 let sweepFilterRel=new Set(),currentKw='';
 let bank=JSON.parse(localStorage.getItem('kw_bank')||'[]');
@@ -685,7 +754,7 @@ async function classifyKeywords(keywords){
 function saveSession(){
   try{
     const session={
-      currentKw,relevant,noise,queryLog,modData,coreTokens,
+      currentKw,collected,relevant,noise,review,filteredTab,queryLog,modData,coreTokens,sortDone,
       timestamp:Date.now(),
       complete: !running
     };
@@ -710,8 +779,12 @@ function restoreSession(){
   const s=window._pendingSession;
   if(!s)return;
   currentKw=s.currentKw;
+  collected=s.collected||[];
   relevant=s.relevant||[];
   noise=s.noise||[];
+  review=s.review||[];
+  filteredTab=s.filteredTab||[];
+  sortDone=s.sortDone||false;
   queryLog=s.queryLog||[];
   modData=s.modData;
   coreTokens=s.coreTokens||[];
@@ -721,7 +794,9 @@ function restoreSession(){
   if(modData){renderNicheCard(modData);renderInspector(modData,currentKw);renderSeeds(modData);}
   $('results-area').style.display='block';
   $('sweep-pills-rel').innerHTML='';delete $('sweep-pills-rel').dataset.rendered;
-  renderTable('relevant');renderTable('noise');renderTable('qlog');
+  renderTable('collected');renderTable('relevant');renderTable('review');renderTable('noise');renderTable('qlog');
+  if(filteredTab.length){$('filtered-tab-btn').style.display='flex';renderTable('filtered');}
+  if(sortDone){$('sort-ai-banner').classList.remove('show');}
   updateBadges();
 }
 
@@ -735,7 +810,7 @@ async function startRun(){
   const kw=$('kw-input').value.trim();
   if(!kw){$('kw-input').focus();return;}
   currentKw=kw;
-  relevant=[];noise=[];queryLog=[];stopFlag=false;running=true;modData=null;intentRules=null;coreTokens=[];
+  collected=[];relevant=[];noise=[];review=[];filteredTab=[];queryLog=[];stopFlag=false;running=true;modData=null;intentRules=null;coreTokens=[];sortDone=false;
   savedSweepState=null;
   sweepFilterRel=new Set();
   $('session-banner').classList.remove('show');
@@ -752,7 +827,7 @@ async function startRun(){
   $('rl-alert').classList.remove('show');
   $('sweep-pills-rel').innerHTML='';
   $('sweep-pills-rel').dataset.rendered='';
-  $('tbody-rel').innerHTML='';$('tbody-noise').innerHTML='';$('tbody-qlog').innerHTML='';
+  $('tbody-rel').innerHTML='';$('tbody-noise').innerHTML='';$('tbody-qlog').innerHTML='';$('tbody-review').innerHTML='';$('tbody-collected').innerHTML='';$('tbody-filtered').innerHTML='';
   $('spinner').style.display='inline-block';
 
   const geo=$('geo-select').value;
@@ -828,35 +903,28 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
       const sugg=result.suggestions||[];
       let added=0,filtered=0;
 
+      // PURE COLLECTION — zero filtering, zero AI calls during the sweep.
+      // Every single suggestion Google returns goes into ONE bucket.
+      // Sorting into Relevant/Review happens only after the full sweep
+      // ends, via an explicit "Sort with AI" action.
       for(const s of sugg){
-        const rel=isRelevant(s, currentKw, coreTokens);
-        if(rel){
-          if(!relevant.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
-            relevant.push({kw:s,sweep:def.label,mod:q.replace(currentKw,'').trim()||q,intent:'',run:currentKw});
-            added++;
-          }
-        } else {
-          filtered++;
-          if(saveNoise){
-            if(!noise.some(k=>k.kw.toLowerCase()===s.toLowerCase())){
-              noise.push({kw:s,sweep:def.label});
-            }
-          }
-        }
+        const already=collected.some(k=>k.kw.toLowerCase()===s.toLowerCase());
+        if(already) continue;
+        collected.push({kw:s,sweep:def.label,mod:q.replace(currentKw,'').trim()||q,intent:'',run:currentKw});
+        added++;
       }
 
       // Log every query for full transparency
       let status='ok';
       if(sugg.length===0) status='empty';
-      else if(added===0) status='filtered';
       queryLog.push({
         query:q, sweep:def.label, raw_count:sugg.length, kept_count:added,
         status, error:result.error||null
       });
 
       if(added>0){
-        $('status-cnt').textContent=`${relevant.length} relevant · ${noise.length} noise`;
-        renderTable('relevant');
+        $('status-cnt').textContent=`${collected.length} collected`;
+        renderTable('collected');
       }
 
       sinceLastSave++;
@@ -868,12 +936,7 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
   }
 
   if(!stopFlag){
-    setStatus('Classifying intents...',92);
-    const kwList=relevant.map(k=>k.kw);
-    const classified=await classifyKeywords(kwList);
-    relevant.forEach(k=>{if(classified[k.kw])k.intent=classified[k.kw];});
-
-    setStatus('Complete ✓',100);
+    setStatus('Complete ✓ — click "Sort with AI" to organize',100);
     $('spinner').style.display='none';
     $('run-btn').disabled=false;
     $('stop-btn').style.display='none';
@@ -881,15 +944,15 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
     running=false;
     savedSweepState=null;
 
-    renderTable('relevant');
-    renderTable('noise');
+    renderTable('collected');
     renderTable('qlog');
     renderSeeds(modData);
     $('results-area').style.display='block';
+    $('sort-ai-banner').classList.add('show');
     updateBadges();
     saveSession();
   } else {
-    setStatus(`Stopped — ${relevant.length} keywords saved`,null);
+    setStatus(`Stopped — ${collected.length} keywords collected`,null);
     $('spinner').style.display='none';
     $('run-btn').disabled=false;
     $('stop-btn').style.display='none';
@@ -898,7 +961,91 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
     $('results-area').style.display='block';
     updateBadges();
     renderTable('qlog');
+    renderTable('collected');
     saveSession();
+  }
+}
+
+// ── SORT WITH AI — single explicit action after collection finishes ──────────
+async function sortWithAI(){
+  if(!collected.length){alert('Nothing collected yet. Run a sweep first.');return;}
+  const btn=$('sort-ai-btn');
+  btn.disabled=true;
+  btn.textContent='⏳ Sorting...';
+
+  try{
+    const kwList=collected.map(k=>k.kw);
+    const r=await fetch('/api/sort',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        keyword:currentKw,
+        niche:modData?.niche||'',
+        intent_summary:modData?.intent_summary||'',
+        keywords:kwList
+      })});
+    const d=await r.json();
+
+    const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
+    relevant=[];review=[];
+    collected.forEach(item=>{
+      if(relevantSet.has(item.kw.toLowerCase())) relevant.push(item);
+      else review.push(item);
+    });
+
+    if(modData?.intent_rules){
+      intentRules=modData.intent_rules;
+      const classified=await classifyKeywords(relevant.map(k=>k.kw));
+      relevant.forEach(k=>{if(classified[k.kw])k.intent=classified[k.kw];});
+    }
+
+    sortDone=true;
+    $('sort-ai-banner').classList.remove('show');
+    $('sort-result-note').textContent=`AI sorted ${collected.length} collected keywords → ${relevant.length} Relevant, ${review.length} need Review${d._error?' (note: '+d._error+')':''}`;
+    $('sort-result-note').style.display='block';
+
+    $('sweep-pills-rel').innerHTML='';delete $('sweep-pills-rel').dataset.rendered;
+    renderTable('relevant');renderTable('review');
+    updateBadges();
+    saveSession();
+  }catch(e){
+    alert('Sort failed: '+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent='🤖 Sort with AI';
+  }
+}
+
+// ── FILTER WITH AI — second pass, only on what's currently in Review ─────────
+async function filterReviewWithAI(){
+  if(!review.length){alert('Review tab is empty — nothing to filter.');return;}
+  const btn=$('filter-ai-btn');
+  btn.disabled=true;
+  btn.textContent='⏳ Filtering...';
+
+  try{
+    const kwList=review.map(k=>k.kw);
+    const r=await fetch('/api/sort',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        keyword:currentKw,
+        niche:modData?.niche||'',
+        intent_summary:modData?.intent_summary||'',
+        keywords:kwList
+      })});
+    const d=await r.json();
+
+    const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
+    filteredTab=review.filter(item=>relevantSet.has(item.kw.toLowerCase()));
+
+    $('filtered-tab-btn').style.display='flex';
+
+    renderTable('filtered');
+    updateBadges();
+    saveSession();
+    alert(`AI found ${filteredTab.length} of ${review.length} Review items likely relevant. Check the new "Filtered" tab.`);
+  }catch(e){
+    alert('Filter failed: '+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent='🤖 Filter with AI';
   }
 }
 
@@ -1040,10 +1187,64 @@ function updateInspectorCounts(){
 
 // ── TABLE RENDERING ───────────────────────────────────────────────────────────
 function renderTable(tab){
-  if(tab==='relevant')renderRelevant();
+  if(tab==='collected')renderCollected();
+  else if(tab==='relevant')renderRelevant();
+  else if(tab==='review')renderReview();
+  else if(tab==='filtered')renderFiltered();
   else if(tab==='noise')renderNoise();
   else if(tab==='bank')renderBank();
   else if(tab==='qlog')renderQueryLog();
+}
+
+function renderCollected(){
+  const filter=$('filter-collected')?.value?.toLowerCase()||'';
+  const filtered=collected.filter(k=>k.kw.toLowerCase().includes(filter));
+  $('tb-collected').textContent=collected.length;
+  $('tbody-collected').innerHTML=filtered.map((k,i)=>{
+    const num=+k.sweep.split('_')[0].replace('S','');
+    const color=SC[num]||'#888';
+    const mod=k.mod?`<span class="formula-base">${esc(currentKw)}</span> + <span class="built-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(k.mod)}</span>`:'—';
+    return`<tr>
+      <td style="color:var(--dim);font-size:10px">${i+1}</td>
+      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
+      <td class="built-from">${mod}</td>
+      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderFiltered(){
+  const filter=$('filter-filtered')?.value?.toLowerCase()||'';
+  const filtered=filteredTab.filter(k=>k.kw.toLowerCase().includes(filter));
+  $('tb-filtered').textContent=filteredTab.length;
+  $('tbody-filtered').innerHTML=filtered.map((k,i)=>{
+    const num=+k.sweep.split('_')[0].replace('S','');
+    const color=SC[num]||'#888';
+    const mod=k.mod?`<span class="formula-base">${esc(currentKw)}</span> + <span class="built-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(k.mod)}</span>`:'—';
+    return`<tr>
+      <td style="color:var(--dim);font-size:10px">${i+1}</td>
+      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
+      <td class="built-from">${mod}</td>
+      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
+    </tr>`;
+  }).join('');
+}
+
+function bulkMoveFilteredToRelevant(){
+  if(!filteredTab.length){alert('Filtered tab is empty.');return;}
+  let moved=0;
+  filteredTab.forEach(item=>{
+    if(!relevant.some(r=>r.kw.toLowerCase()===item.kw.toLowerCase())){
+      relevant.push(item);
+      moved++;
+    }
+    const idx=review.findIndex(r=>r.kw.toLowerCase()===item.kw.toLowerCase());
+    if(idx>-1) review.splice(idx,1);
+  });
+  renderTable('relevant');renderTable('review');updateBadges();saveSession();
+  alert(`Moved ${moved} keyword(s) from Filtered to Relevant.`);
 }
 
 function renderRelevant(){
@@ -1097,6 +1298,47 @@ function renderNoise(){
   }).join('');
 }
 
+function renderReview(){
+  const filter=$('filter-review')?.value?.toLowerCase()||'';
+  const filtered=review.filter(k=>k.kw.toLowerCase().includes(filter));
+  $('tb-review').textContent=review.length;
+  $('tbody-review').innerHTML=filtered.map((k,i)=>{
+    const num=+k.sweep.split('_')[0].replace('S','');
+    const color=SC[num]||'#888';
+    const mod=k.mod?`<span class="formula-base">${esc(currentKw)}</span> + <span class="built-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(k.mod)}</span>`:'—';
+    return`<tr>
+      <td><input type="checkbox" class="review-check" data-kw="${esc(k.kw)}"></td>
+      <td style="color:var(--dim);font-size:10px">${i+1}</td>
+      <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
+      <td class="built-from">${mod}</td>
+      <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleSelectAllReview(cb){
+  document.querySelectorAll('.review-check').forEach(c=>c.checked=cb.checked);
+}
+
+function bulkMoveReviewToRelevant(){
+  const checked=[...document.querySelectorAll('.review-check:checked')].map(c=>c.dataset.kw);
+  if(!checked.length){alert('No keywords selected. Check the boxes next to keywords you want to mark as Relevant.');return;}
+  let moved=0;
+  checked.forEach(kw=>{
+    const idx=review.findIndex(r=>r.kw===kw);
+    if(idx>-1){
+      const item=review.splice(idx,1)[0];
+      if(!relevant.some(r=>r.kw.toLowerCase()===item.kw.toLowerCase())){
+        relevant.push(item);
+        moved++;
+      }
+    }
+  });
+  renderTable('review');renderTable('relevant');updateBadges();saveSession();
+  if(moved>0)alert(`Moved ${moved} keyword(s) to Relevant.`);
+}
+
 function renderQueryLog(){
   const filter=$('filter-qlog')?.value?.toLowerCase()||'';
   const statusF=$('qlog-status-filter')?.value||'';
@@ -1108,7 +1350,7 @@ function renderQueryLog(){
     const num=+q.sweep.split('_')[0].replace('S','');
     const color=SC[num]||'#888';
     const statusClass=q.error?'err':q.status;
-    const statusLabel=q.error?'ERROR':q.status==='ok'?'OK':q.status==='empty'?'EMPTY':'FILTERED';
+    const statusLabel=q.error?'ERROR':q.status==='ok'?'OK':'EMPTY';
     return`<tr>
       <td style="color:var(--dim);font-size:10px">${i+1}</td>
       <td class="built-from">${esc(q.query)}</td>
@@ -1148,14 +1390,14 @@ function clearBank(){
 }
 
 function updateBankBadge(){$('tb-bank').textContent=bank.length;}
-function updateBadges(){$('tb-rel').textContent=relevant.length;$('tb-noise').textContent=noise.length;$('tb-qlog').textContent=queryLog.length;updateBankBadge();}
+function updateBadges(){$('tb-collected').textContent=collected.length;$('tb-rel').textContent=relevant.length;$('tb-review').textContent=review.length;$('tb-filtered').textContent=filteredTab.length;$('tb-noise').textContent=noise.length;$('tb-qlog').textContent=queryLog.length;updateBankBadge();}
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab,btn){
   activeTab=tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   btn.classList.add('on');
-  ['relevant','noise','qlog','bank'].forEach(t=>$(`tab-${t}`).style.display=t===tab?'block':'none');
+  ['collected','relevant','review','filtered','noise','qlog','bank'].forEach(t=>$(`tab-${t}`).style.display=t===tab?'block':'none');
 }
 
 // ── SEEDS ─────────────────────────────────────────────────────────────────────
@@ -1174,7 +1416,10 @@ function runSeed(kw){
 
 // ── EXPORT / COPY ─────────────────────────────────────────────────────────────
 function getDataset(tab){
+  if(tab==='collected')return collected;
   if(tab==='relevant')return relevant;
+  if(tab==='review')return review;
+  if(tab==='filtered')return filteredTab;
   if(tab==='noise')return noise;
   if(tab==='bank')return bank;
   return[];
