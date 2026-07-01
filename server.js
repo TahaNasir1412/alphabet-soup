@@ -143,6 +143,9 @@ async function withRetry(fn, label, maxAttempts = 3) {
                           e.message?.includes('ECONNRESET') ||
                           e.message?.includes('fetch failed') ||
                           e.message?.includes('[503]') ||
+                          e.message?.includes('aborted') ||
+                          e.message?.includes('operation was aborted') ||
+                          e.name === 'AbortError' ||
                           e.code === 'ECONNRESET';
       if (!isRetryable) throw e;
       if (attempt < maxAttempts) {
@@ -188,7 +191,7 @@ async function callGemini(prompt) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 32768, responseMimeType: 'application/json' }
       })
-    }, 120000);
+    }, 180000);
     const d = await safeJson(r, 'Gemini');
     if (d.error) {
       const code = d.error.code || d.error.status || 'unknown';
