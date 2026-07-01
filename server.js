@@ -102,6 +102,9 @@ GAMING: S4: pc, mobile, android, ios, console, how to play, free to play, cheat 
 ━━━ STEP 3: GEO DETECTION ━━━
 Indian signals→India(in). German→Germany(de). Portuguese/Brazilian→Brazil(br). Spanish/Latin American→Mexico(mx)/Spain(es). Japanese/Korean→Japan(jp)/Korea(kr). Arabic→Saudi(sa)/UAE(ae). UK spelling/cities→UK(gb). US city name→USA(us). Unknown→USA(us).
 
+━━━ STEP 3.5: QUESTION PREFIX COVERAGE (CRITICAL) ━━━
+s3_question_prefixes MUST include BOTH the bare form AND the expanded form of every question pattern, because real searchers drop words inconsistently. For example, do not only include "is it" — also separately include bare "is". Do not only include "how do i" — also separately include bare "how". Required minimum bare forms that MUST always appear as standalone entries regardless of niche: "is", "are", "does", "do", "can", "will", "why", "how", "what", "where", "when", "who", "which", "should". Then ALSO add expanded/natural variants on top of these bare forms ("is it", "is the", "how do i", "how to", "why is", "why does", etc). Missing the bare form is a critical coverage gap — a real user typing "is anime salt safe" must be matched by a bare "is" prefix producing exactly "is anime salt", not only by "is it" producing "is it anime salt" which is a different, less common query.
+
 ━━━ STEP 4: INTENT CLASSIFICATION RULES ━━━
 Classify keywords as: navigational, download, streaming, informational, commercial, transactional, local, troubleshoot.
 
@@ -263,7 +266,7 @@ function ruleBased(keyword, outputLang) {
     geo_reason: 'Detected from keyword signals (rule-based fallback)',
     output_language: lang,
     sweeps: {
-      s3_question_prefixes: ['how to','why','what is','is','can i','does','where to','when does','which','who','how does','should i'],
+      s3_question_prefixes: ['is','are','does','do','can','will','why','how','what','where','when','who','which','should','how to','why is','why does','what is','can i','does it','where to','when does','who makes','how does','should i','is it','is the'],
       s3_question_suffixes: ['safe','free','working','legal','real','good','worth it','legit','available','updated','down','official'],
       s4_platform: pack.s4,
       s5_problem: pack.s5,
@@ -377,6 +380,94 @@ app.post('/api/modifiers', async (req, res) => {
   fb._ai_error = primaryError;
   fb._active_provider = 'rule-based';
   res.json(fb);
+});
+
+// ── SORT ENDPOINT — AI classifies a batch of ALREADY-COLLECTED keywords ──────
+// Used after a sweep completes (or on Review items) to split into
+// relevant vs review/filtered based on actual intent understanding,
+// not literal token matching. Never runs mid-sweep.
+function buildSortPrompt(keyword, niche, intentSummary, keywords) {
+  const list = keywords.map((k, i) => `${i+1}. ${k}`).join('\n');
+  return `You are sorting a batch of real Google Autocomplete suggestions that were collected for the keyword/niche below. Your job is to decide, using your understanding of the niche and intent — NOT literal word matching — which suggestions are genuinely relevant to someone interested in this keyword, and which are not.
+
+KEYWORD: "${keyword}"
+NICHE: ${niche || 'unknown — infer from the keyword and the suggestions themselves'}
+INTENT SUMMARY: ${intentSummary || 'infer from context'}
+
+A suggestion counts as RELEVANT if a person interested in "${keyword}" would plausibly want to see it — even if it does not contain the exact keyword text, as long as it matches the same underlying intent, audience, or topic. A suggestion counts as NOT RELEVANT if it is about something different that merely shares a word (e.g. a different meaning of a word in the keyword, an unrelated place, an unrelated product).
+
+SUGGESTIONS TO SORT (numbered, ${keywords.length} total):
+${list}
+
+Return ONLY raw JSON, no markdown, in this exact shape:
+{
+  "relevant": [list of the exact suggestion strings that are relevant],
+  "not_relevant": [list of the exact suggestion strings that are not relevant]
+}
+Every suggestion from the input list must appear in exactly one of the two arrays. Do not invent new strings — only use the exact text given.`;
+}
+
+app.post('/api/sort', async (req, res) => {
+  const { keyword, niche, intent_summary, keywords } = req.body;
+  if (!keywords?.length) return res.json({ relevant: [], not_relevant: [] });
+
+  const provider = getActiveProvider();
+  if (!provider) {
+    // No AI available — return everything as relevant, nothing sorted
+    return res.json({ relevant: keywords, not_relevant: [], _source: 'none', _note: 'No AI provider configured, all items passed through as relevant.' });
+  }
+
+  // Chunk large lists to stay within token limits — 60 keywords per call
+  const CHUNK = 60;
+  const chunks = [];
+  for (let i = 0; i < keywords.length; i += CHUNK) chunks.push(keywords.slice(i, i + CHUNK));
+
+  let allRelevant = [];
+  let allNotRelevant = [];
+  let usedProvider = provider;
+  let lastErr = null;
+
+  for (const chunk of chunks) {
+    const prompt = buildSortPrompt(keyword, niche, intent_summary, chunk);
+    try {
+      let raw = '';
+      if (provider === 'gemini')         raw = await callGemini(prompt);
+      else if (provider === 'anthropic') raw = await callAnthropic(prompt);
+      else if (provider === 'groq')      raw = await callGroq(prompt);
+      else if (provider === 'openai')    raw = await callOpenAI(prompt);
+
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      allRelevant.push(...(parsed.relevant || []));
+      allNotRelevant.push(...(parsed.not_relevant || []));
+    } catch (e) {
+      lastErr = e.message;
+      // Try groq fallback for this chunk if primary wasn't groq
+      if (provider !== 'groq' && PROVIDERS.groq.key) {
+        try {
+          const raw = await callGroq(prompt);
+          const clean = raw.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+          allRelevant.push(...(parsed.relevant || []));
+          allNotRelevant.push(...(parsed.not_relevant || []));
+          usedProvider = 'groq';
+          continue;
+        } catch (e2) {
+          lastErr = `${provider}: ${e.message} | groq: ${e2.message}`;
+        }
+      }
+      // Chunk failed entirely — pass its items through as not_relevant
+      // so nothing silently vanishes; user can see them and re-run.
+      allNotRelevant.push(...chunk);
+    }
+  }
+
+  res.json({
+    relevant: allRelevant,
+    not_relevant: allNotRelevant,
+    _source: usedProvider,
+    _error: lastErr,
+  });
 });
 
 app.post('/api/classify', async (req, res) => {
