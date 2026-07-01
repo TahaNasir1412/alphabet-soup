@@ -70,34 +70,23 @@ Examples (illustrative only — do not bias unrelated keywords):
 "appliance repair in flagstaff" → hyperlocal home service. Real searchers vary phrasing: city-first ("flagstaff appliance repair"), category-first ("appliance repair flagstaff az"), question form ("who repairs appliances in flagstaff"), brand-specific, or zero-location ("appliance repair near me") because Google already geo-targets from IP.
 
 ━━━ STEP 2: DETECT THE NICHE ━━━
-Identify which pattern (or blend, or something else) fits the CURRENT keyword. Don't force-fit.
+Identify which niche fits. Use your training knowledge of what modifiers real users type for each niche type. Key niche signals:
 
-STREAMING / FREE WATCH ONLINE:
-S4: apk, android, ios, iphone, ipad, pc, windows, mac, firestick, fire tv, android tv, smart tv, web, browser, online, download, install, mod apk, premium apk, no ads, apkpure, uptodown, play store, app store, mirror link, telegram
-S5: not working, not opening, not loading, buffering, error, black screen, login problem, banned, blocked, region locked, vpn needed, site down, server down, alternative, new domain, new link, mirror, proxy, unblock, update, latest update
-S6: hindi dubbed, tamil dubbed, telugu dubbed, bengali dubbed, malayalam dubbed, kannada dubbed, english dubbed, english sub, japanese audio, korean, urdu dubbed, free, no subscription, no login, hd quality, 1080p, 4k, ad free, latest episodes, all seasons
+STREAMING/APK: focus on device access (apk, android, ios, pc, firestick, smart tv), availability issues (not working, banned, blocked, mirror, vpn), language variants (hindi dubbed, tamil dubbed, english sub), and free/no-login access patterns.
 
-APK / SOFTWARE DOWNLOAD: mod apk, premium unlocked, cracked apk, no root required, latest version apk, old version apk. S5: not installing, installation failed, parse error, virus detected, is it safe, removed from play store
+LOCAL SERVICE (trade + city): THREE patterns — (a) glued modifier after keyword e.g. "near me", (b) city-FIRST natural phrases in s9 e.g. "[city] [service] company", (c) zero-location generic e.g. "emergency [service]". S4 focuses on proximity/availability, S5 on trust/alternatives, S6 on quality signals.
 
-LOCAL SERVICE (any trade/service + any city): Generate THREE phrasing patterns, not just glued:
-(a) modifier-after: "[service] near me"
-(b) city/brand-FIRST natural standalone phrases in s9_custom: "[city] [service] company", "who does [service] in [city]"
-(c) zero-location generic (Google geo-targets from IP): "[service] near me", "[service] today", "emergency [service]"
-S4: near me, nearby, close to me, in my area, open now, open today, 24 hours, 24/7, same day, emergency, urgent, walk in, no appointment needed, free estimate, free quote, phone number, address, today, tonight, this weekend
-S5: closed, not available, fully booked, too expensive, bad reviews, scam, alternative, cheaper, who fixes, who does, technician, specialist, company, contractor
-S6: cheap, cheapest, affordable, budget, best, top rated, trusted, recommended, verified, licensed, insured, certified, experienced, local, family run, small business, independent
+ECOMMERCE: purchase intent (buy, price, discount, coupon), trust issues (fake, return policy), audience segments (for men, for women, as gift).
 
-ECOMMERCE: S4: buy, buy online, price, cheapest price, discount, sale, coupon, free shipping, review, reviews, in stock, where to buy, official store. S5: fake, counterfeit, out of stock, refund, return policy, not delivered, damaged, alternative. S6: for men, for women, for kids, as gift, imported, original, luxury, premium, budget, worth buying, vs
+FINANCE/SALARY: calculation focus (calculator, formula, monthly, after tax), accuracy concerns (wrong result, outdated), demographic variants (for salaried, by country).
 
-FINANCE/SALARY/TAX: S4: calculator, calculate, formula, monthly, annual, gross, net, take home, after tax, online, free calculator, breakdown. S5: wrong result, not accurate, outdated, alternative, error. S6: for salaried, for self employed, for freelancers, by state, by country, 2025 rates
+SAAS: pricing/trial, login/signup, integrations, cancellation, alternatives.
 
-TOOL/CALCULATOR: S4: free, free online, no signup, web based, desktop app, mobile app, api, excel, bulk. S5: not working, wrong answer, inaccurate, bug, alternative. S6: for students, for professionals, for business, beginner friendly, advanced
+GAMING: platform access, cheats/mods, account issues, tier lists.
 
-BLOGGING/INFORMATIONAL: S4: for beginners, step by step, complete guide, tips, hacks, examples, checklist, template. S5: myths, mistakes to avoid, outdated advice, common errors. S6: for men, for women, for teens, for professionals, for seniors, on a budget, at home
+BLOGGING/INFO: content angles (guide, tips, checklist), counterpoints (myths, mistakes), audiences (for beginners, for seniors).
 
-SAAS: S4: pricing, plans, cost, free plan, free trial, login, sign up, download, api, integration, how to use. S5: not working, down, bugs, login problem, cancel subscription, refund, too expensive, alternative. S6: for small business, for startups, for enterprise, for freelancers, review, vs
-
-GAMING: S4: pc, mobile, android, ios, console, how to play, free to play, cheat codes, mod, redeem code. S5: ban, account banned, lag, server down, crash. S6: beginner guide, pro tips, best settings, tier list
+For EVERY niche: s9_custom must contain minimum 25 COMPLETE NATURAL QUERIES as full standalone phrases in varied word order — not keyword+modifier concatenation. s10_wildcard must have 15+ action-first variants.
 
 ━━━ STEP 3: GEO DETECTION ━━━
 Indian signals→India(in). German→Germany(de). Portuguese/Brazilian→Brazil(br). Spanish/Latin American→Mexico(mx)/Spain(es). Japanese/Korean→Japan(jp)/Korea(kr). Arabic→Saudi(sa)/UAE(ae). UK spelling/cities→UK(gb). US city name→USA(us). Unknown→USA(us).
@@ -197,7 +186,7 @@ async function callGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 16384, responseMimeType: 'application/json' }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 32768, responseMimeType: 'application/json' }
       })
     }, 120000);
     const d = await safeJson(r, 'Gemini');
