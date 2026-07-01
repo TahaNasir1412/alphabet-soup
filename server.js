@@ -189,10 +189,14 @@ async function callGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 16384, responseMimeType: 'application/json' }
       })
     }, 60000);
-    const d = await r.json();
+    const gText = await r.text();
+    if (!gText || gText.trim().startsWith('<') || gText.includes('upstream error')) {
+      throw new Error(`Gemini: gateway error — ${gText.slice(0,100)}`);
+    }
+    const d = JSON.parse(gText);
     if (d.error) {
       const code = d.error.code || d.error.status || 'unknown';
       throw new Error(`Gemini [${code}]: ${d.error.message || JSON.stringify(d.error)}`);
@@ -229,7 +233,11 @@ async function callGroq(prompt) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
     }, 60000);
-    const d = await r.json();
+    const gqText = await r.text();
+    if (!gqText || gqText.trim().startsWith('<') || gqText.includes('upstream error')) {
+      throw new Error(`Groq: gateway error — ${gqText.slice(0,100)}`);
+    }
+    const d = JSON.parse(gqText);
     if (d.error) throw new Error(`Groq: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
   }, 'Groq');
