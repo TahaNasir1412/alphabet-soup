@@ -139,65 +139,114 @@ Return this exact JSON:
 }`;
 }
 
+// ── RETRY WRAPPER ─────────────────────────────────────────────────────────────
+// "Premature close" means the connection dropped mid-response — common on
+// Railway when AI responses are large. Retry up to 3 times with backoff
+// before giving up. Only retries on network errors, not API errors (quota etc).
+async function withRetry(fn, label, maxAttempts = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      const isPrematureClose = e.message?.includes('Premature close') ||
+                               e.message?.includes('network') ||
+                               e.message?.includes('ECONNRESET') ||
+                               e.message?.includes('fetch failed') ||
+                               e.code === 'ECONNRESET';
+      if (!isPrematureClose) throw e; // don't retry API errors (quota, auth, etc)
+      if (attempt < maxAttempts) {
+        const wait = attempt * 2000; // 2s, 4s backoff
+        console.warn(`${label} attempt ${attempt} failed (${e.message}) — retrying in ${wait}ms`);
+        await new Promise(r => setTimeout(r, wait));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// ── FETCH WITH TIMEOUT ────────────────────────────────────────────────────────
+// node-fetch doesn't support AbortController timeout natively in all versions,
+// so we wrap with a manual Promise.race timeout.
+async function fetchWithTimeout(url, options, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { ...options, signal: controller.signal });
+    return r;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callGemini(prompt) {
-  const cfg = PROVIDERS.gemini;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.key}`;
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: 'application/json' }
-    })
-  });
-  const d = await r.json();
-  if (d.error) {
-    const code = d.error.code || d.error.status || 'unknown';
-    throw new Error(`Gemini [${code}]: ${d.error.message || JSON.stringify(d.error)}`);
-  }
-  const candidate = d.candidates?.[0];
-  if (candidate?.finishReason === 'MAX_TOKENS') {
-    throw new Error('Gemini: response truncated (MAX_TOKENS)');
-  }
-  const text = candidate?.content?.parts?.[0]?.text || '';
-  if (!text) throw new Error(`Gemini: empty response (finishReason: ${candidate?.finishReason || 'none'})`);
-  return text;
+  return withRetry(async () => {
+    const cfg = PROVIDERS.gemini;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.key}`;
+    const r = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: 'application/json' }
+      })
+    }, 60000);
+    const d = await r.json();
+    if (d.error) {
+      const code = d.error.code || d.error.status || 'unknown';
+      throw new Error(`Gemini [${code}]: ${d.error.message || JSON.stringify(d.error)}`);
+    }
+    const candidate = d.candidates?.[0];
+    if (candidate?.finishReason === 'MAX_TOKENS') {
+      throw new Error('Gemini: response truncated (MAX_TOKENS)');
+    }
+    const text = candidate?.content?.parts?.[0]?.text || '';
+    if (!text) throw new Error(`Gemini: empty response (finishReason: ${candidate?.finishReason || 'none'})`);
+    return text;
+  }, 'Gemini');
 }
 
 async function callAnthropic(prompt) {
-  const cfg = PROVIDERS.anthropic;
-  const r = await fetch(cfg.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
-  });
-  const d = await r.json();
-  if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
-  return d.content?.map(c => c.text || '').join('') || '';
+  return withRetry(async () => {
+    const cfg = PROVIDERS.anthropic;
+    const r = await fetchWithTimeout(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+    }, 60000);
+    const d = await r.json();
+    if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
+    return d.content?.map(c => c.text || '').join('') || '';
+  }, 'Anthropic');
 }
 
 async function callGroq(prompt) {
-  const cfg = PROVIDERS.groq;
-  const r = await fetch(cfg.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
-  });
-  const d = await r.json();
-  if (d.error) throw new Error(`Groq: ${d.error.message}`);
-  return d.choices?.[0]?.message?.content || '';
+  return withRetry(async () => {
+    const cfg = PROVIDERS.groq;
+    const r = await fetchWithTimeout(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
+      body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
+    }, 60000);
+    const d = await r.json();
+    if (d.error) throw new Error(`Groq: ${d.error.message}`);
+    return d.choices?.[0]?.message?.content || '';
+  }, 'Groq');
 }
 
 async function callOpenAI(prompt) {
-  const cfg = PROVIDERS.openai;
-  const r = await fetch(cfg.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
-  });
-  const d = await r.json();
-  if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
-  return d.choices?.[0]?.message?.content || '';
+  return withRetry(async () => {
+    const cfg = PROVIDERS.openai;
+    const r = await fetchWithTimeout(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
+      body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
+    }, 60000);
+    const d = await r.json();
+    if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
+    return d.choices?.[0]?.message?.content || '';
+  }, 'OpenAI');
 }
 
 function ruleBased(keyword, outputLang) {
