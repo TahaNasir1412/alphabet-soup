@@ -199,7 +199,7 @@ async function callGemini(prompt) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 16384, responseMimeType: 'application/json' }
       })
-    }, 60000);
+    }, 120000);
     const d = await safeJson(r, 'Gemini');
     if (d.error) {
       const code = d.error.code || d.error.status || 'unknown';
@@ -222,7 +222,7 @@ async function callAnthropic(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
-    }, 60000);
+    }, 120000);
     const d = await safeJson(r, 'Anthropic');
     if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
     return d.content?.map(c => c.text || '').join('') || '';
@@ -236,7 +236,7 @@ async function callGroq(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
-    }, 60000);
+    }, 120000);
     const d = await safeJson(r, 'Groq');
     if (d.error) throw new Error(`Groq: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
@@ -250,7 +250,7 @@ async function callOpenAI(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
-    }, 60000);
+    }, 120000);
     const d = await safeJson(r, 'OpenAI');
     if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
