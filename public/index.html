@@ -922,10 +922,9 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
         status, error:result.error||null
       });
 
-      if(added>0){
-        $('status-cnt').textContent=`${collected.length} collected`;
-        renderTable('collected');
-      }
+      // Always update counter so user sees live progress
+      $('status-cnt').textContent=`${collected.length} collected`;
+      if(added>0) renderTable('collected');
 
       sinceLastSave++;
       if(sinceLastSave>=15){ saveSession(); sinceLastSave=0; }
@@ -982,7 +981,11 @@ async function sortWithAI(){
         intent_summary:modData?.intent_summary||'',
         keywords:kwList
       })});
-    const d=await r.json();
+    const rawText=await r.text();
+    if(!rawText||rawText.trim().startsWith('<')||rawText.includes('upstream error')){
+      throw new Error('Server gateway error — Railway returned an error page. Try again in a moment.');
+    }
+    const d=JSON.parse(rawText);
 
     const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
     relevant=[];review=[];
@@ -1030,7 +1033,11 @@ async function filterReviewWithAI(){
         intent_summary:modData?.intent_summary||'',
         keywords:kwList
       })});
-    const d=await r.json();
+    const rawText=await r.text();
+    if(!rawText||rawText.trim().startsWith('<')||rawText.includes('upstream error')){
+      throw new Error('Server gateway error — Railway returned an error page. Try again in a moment.');
+    }
+    const d=JSON.parse(rawText);
 
     const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
     filteredTab=review.filter(item=>relevantSet.has(item.kw.toLowerCase()));
@@ -1181,7 +1188,7 @@ function toggleSweepBody(num){
 function updateInspectorCounts(){
   for(let i=1;i<=10;i++){
     const el=$(`sc-count-${i}`);if(!el)continue;
-    el.textContent=`${relevant.filter(k=>k.sweep===SN[i]).length} results`;
+    el.textContent=`${collected.filter(k=>k.sweep===SN[i]).length} collected`;
   }
 }
 
