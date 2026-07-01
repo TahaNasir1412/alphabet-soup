@@ -140,9 +140,8 @@ Return this exact JSON:
 }
 
 // ── RETRY WRAPPER ─────────────────────────────────────────────────────────────
-// "Premature close" means the connection dropped mid-response — common on
-// Railway when AI responses are large. Retry up to 3 times with backoff
-// before giving up. Only retries on network errors, not API errors (quota etc).
+// Retries on network errors AND Gemini 503 (high demand) with backoff.
+// Does NOT retry real API errors (auth failures, quota exceeded, bad request).
 async function withRetry(fn, label, maxAttempts = 3) {
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -150,14 +149,15 @@ async function withRetry(fn, label, maxAttempts = 3) {
       return await fn();
     } catch (e) {
       lastErr = e;
-      const isPrematureClose = e.message?.includes('Premature close') ||
-                               e.message?.includes('network') ||
-                               e.message?.includes('ECONNRESET') ||
-                               e.message?.includes('fetch failed') ||
-                               e.code === 'ECONNRESET';
-      if (!isPrematureClose) throw e; // don't retry API errors (quota, auth, etc)
+      const isRetryable = e.message?.includes('Premature close') ||
+                          e.message?.includes('network') ||
+                          e.message?.includes('ECONNRESET') ||
+                          e.message?.includes('fetch failed') ||
+                          e.message?.includes('[503]') ||
+                          e.code === 'ECONNRESET';
+      if (!isRetryable) throw e;
       if (attempt < maxAttempts) {
-        const wait = attempt * 2000; // 2s, 4s backoff
+        const wait = attempt * 2000;
         console.warn(`${label} attempt ${attempt} failed (${e.message}) — retrying in ${wait}ms`);
         await new Promise(r => setTimeout(r, wait));
       }
@@ -167,8 +167,6 @@ async function withRetry(fn, label, maxAttempts = 3) {
 }
 
 // ── FETCH WITH TIMEOUT ────────────────────────────────────────────────────────
-// node-fetch doesn't support AbortController timeout natively in all versions,
-// so we wrap with a manual Promise.race timeout.
 async function fetchWithTimeout(url, options, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -178,6 +176,16 @@ async function fetchWithTimeout(url, options, timeoutMs = 60000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+// ── SAFE JSON PARSE FROM RESPONSE ─────────────────────────────────────────────
+// Reads response as text first, checks for HTML/gateway errors before parsing.
+async function safeJson(r, label) {
+  const text = await r.text();
+  if (!text || text.trim().startsWith('<') || text.includes('upstream error')) {
+    throw new Error(`${label}: gateway error — ${text.slice(0, 120)}`);
+  }
+  return JSON.parse(text);
 }
 
 async function callGemini(prompt) {
@@ -192,11 +200,7 @@ async function callGemini(prompt) {
         generationConfig: { temperature: 0.2, maxOutputTokens: 16384, responseMimeType: 'application/json' }
       })
     }, 60000);
-    const gText = await r.text();
-    if (!gText || gText.trim().startsWith('<') || gText.includes('upstream error')) {
-      throw new Error(`Gemini: gateway error — ${gText.slice(0,100)}`);
-    }
-    const d = JSON.parse(gText);
+    const d = await safeJson(r, 'Gemini');
     if (d.error) {
       const code = d.error.code || d.error.status || 'unknown';
       throw new Error(`Gemini [${code}]: ${d.error.message || JSON.stringify(d.error)}`);
@@ -219,7 +223,7 @@ async function callAnthropic(prompt) {
       headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
     }, 60000);
-    const d = await r.json();
+    const d = await safeJson(r, 'Anthropic');
     if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
     return d.content?.map(c => c.text || '').join('') || '';
   }, 'Anthropic');
@@ -233,11 +237,7 @@ async function callGroq(prompt) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
     }, 60000);
-    const gqText = await r.text();
-    if (!gqText || gqText.trim().startsWith('<') || gqText.includes('upstream error')) {
-      throw new Error(`Groq: gateway error — ${gqText.slice(0,100)}`);
-    }
-    const d = JSON.parse(gqText);
+    const d = await safeJson(r, 'Groq');
     if (d.error) throw new Error(`Groq: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
   }, 'Groq');
@@ -251,7 +251,7 @@ async function callOpenAI(prompt) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
     }, 60000);
-    const d = await r.json();
+    const d = await safeJson(r, 'OpenAI');
     if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
   }, 'OpenAI');
@@ -310,7 +310,6 @@ function ruleBased(keyword, outputLang) {
   }
 
   const pack = detected ? PACKS[detected.pack] : PACKS['ecommerce_en'];
-
   const stopwords = new Set(['in','at','near','the','a','an','for','of','on','to']);
   const coreTokens = keyword.toLowerCase().split(/\s+/).filter(t => !stopwords.has(t) && t.length > 1);
 
@@ -442,10 +441,7 @@ app.post('/api/modifiers', async (req, res) => {
   res.json(fb);
 });
 
-// ── SORT ENDPOINT — AI classifies a batch of ALREADY-COLLECTED keywords ──────
-// Used after a sweep completes (or on Review items) to split into
-// relevant vs review/filtered based on actual intent understanding,
-// not literal token matching. Never runs mid-sweep.
+// ── SORT ENDPOINT ─────────────────────────────────────────────────────────────
 function buildSortPrompt(keyword, niche, intentSummary, keywords) {
   const list = keywords.map((k, i) => `${i+1}. ${k}`).join('\n');
   return `You are sorting a batch of real Google Autocomplete suggestions that were collected for the keyword/niche below. Your job is to decide, using your understanding of the niche and intent — NOT literal word matching — which suggestions are genuinely relevant to someone interested in this keyword, and which are not.
@@ -473,12 +469,13 @@ app.post('/api/sort', async (req, res) => {
 
   const provider = getActiveProvider();
   if (!provider) {
-    // No AI available — return everything as relevant, nothing sorted
-    return res.json({ relevant: keywords, not_relevant: [], _source: 'none', _note: 'No AI provider configured, all items passed through as relevant.' });
+    return res.json({ relevant: keywords, not_relevant: [], _source: 'none', _note: 'No AI provider configured — all items passed through.' });
   }
 
-  // Chunk large lists to stay within token limits — 60 keywords per call
-  const CHUNK = 60;
+  // Smaller chunks + delay between them to avoid Groq TPM rate limits
+  // Groq free tier = 12k tokens/min. Each chunk ~40 keywords ≈ 4-5k tokens.
+  // 6 second delay between chunks keeps us well under the limit.
+  const CHUNK = 40;
   const chunks = [];
   for (let i = 0; i < keywords.length; i += CHUNK) chunks.push(keywords.slice(i, i + CHUNK));
 
@@ -487,7 +484,15 @@ app.post('/api/sort', async (req, res) => {
   let usedProvider = provider;
   let lastErr = null;
 
-  for (const chunk of chunks) {
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci];
+
+    // Delay between chunks to respect Groq TPM limit
+    if (ci > 0) {
+      console.log(`Sort chunk ${ci+1}/${chunks.length} — waiting 6s for rate limit reset...`);
+      await new Promise(r => setTimeout(r, 6000));
+    }
+
     const prompt = buildSortPrompt(keyword, niche, intent_summary, chunk);
     try {
       let raw = '';
@@ -500,11 +505,16 @@ app.post('/api/sort', async (req, res) => {
       const parsed = JSON.parse(clean);
       allRelevant.push(...(parsed.relevant || []));
       allNotRelevant.push(...(parsed.not_relevant || []));
+
     } catch (e) {
       lastErr = e.message;
-      // Try groq fallback for this chunk if primary wasn't groq
+      console.error(`Sort chunk ${ci+1} primary failed: ${e.message}`);
+
+      // Try Groq fallback for this chunk
       if (provider !== 'groq' && PROVIDERS.groq.key) {
         try {
+          // Extra wait before Groq fallback to let rate limit recover
+          await new Promise(r => setTimeout(r, 4000));
           const raw = await callGroq(prompt);
           const clean = raw.replace(/```json|```/g, '').trim();
           const parsed = JSON.parse(clean);
@@ -513,11 +523,12 @@ app.post('/api/sort', async (req, res) => {
           usedProvider = 'groq';
           continue;
         } catch (e2) {
+          console.error(`Sort chunk ${ci+1} Groq fallback also failed: ${e2.message}`);
           lastErr = `${provider}: ${e.message} | groq: ${e2.message}`;
         }
       }
-      // Chunk failed entirely — pass its items through as not_relevant
-      // so nothing silently vanishes; user can see them and re-run.
+
+      // Both failed for this chunk — send to not_relevant so nothing vanishes
       allNotRelevant.push(...chunk);
     }
   }
