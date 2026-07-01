@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+// Node 22 has native fetch built-in — no node-fetch needed
 const cors = require('cors');
 const path = require('path');
 
@@ -355,7 +355,10 @@ app.get('/api/suggest', async (req, res) => {
   for (const client of clients) {
     try {
       const url = `http://suggestqueries.google.com/complete/search?client=${client}&q=${encodeURIComponent(q)}&hl=${hl||'en'}&gl=${gl||'us'}`;
-      const r = await fetch(url, { timeout: 7000 });
+      const sc = new AbortController();
+      const st = setTimeout(() => sc.abort(), 7000);
+      const r = await fetch(url, { signal: sc.signal });
+      clearTimeout(st);
       const d = await r.json();
       suggestions = d[1] || [];
       if (suggestions.length > 0) { emptyStreak = 0; break; }
