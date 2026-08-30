@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const PROVIDERS = {
   gemini:    { key: process.env.GEMINI_API_KEY,     model: 'gemini-2.5-flash' },
   anthropic: { key: process.env.ANTHROPIC_API_KEY,  url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-4-6' },
-  groq:      { key: process.env.GROQ_API_KEY,       url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+  groq:      { key: process.env.GROQ_API_KEY,       url: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-120b' },
   openai:    { key: process.env.OPENAI_API_KEY,     url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
 };
 
