@@ -189,7 +189,7 @@ async function callGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 32768, responseMimeType: 'application/json' }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 32768, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
       })
     }, 180000);
     const d = await safeJson(r, 'Gemini');
