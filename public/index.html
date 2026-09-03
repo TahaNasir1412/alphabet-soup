@@ -661,6 +661,31 @@ function resolveAlphabet(lang,d){
   return DEFAULT_ALPHABETS[lang]||DEFAULT_ALPHABETS.en;
 }
 
+// Light Arabic normalization — treats أ/إ/آ as ا and ة as ه for COMPARISON
+// purposes only, so hamza/ta-marbuta spelling drift between the user's typed
+// keyword and the AI's preferred spelling doesn't defeat the match below.
+function normalizeArabicLoose(s){
+  return s.replace(/[أإآ]/g,'ا').replace(/ة/g,'ه');
+}
+
+// Safety net for suffix-style modifiers (S3 suffixes, S4, S5, S6): if the AI
+// put the base keyword INSIDE a "modifier" meant to be glued after it (e.g.
+// modifier = "تفسير الاحلام تطبيق" instead of just "تطبيق"), gluing produces
+// a doubled, unnatural query Google rarely has data for. Strip a leading
+// keyword match, or drop the entry entirely if nothing's left — regardless
+// of how well the prompt is followed on any given run.
+function cleanSuffixModifier(kw,mod){
+  const kwLower=normalizeArabicLoose(kw.trim().toLowerCase());
+  const modTrim=(mod||'').trim();
+  const modLower=normalizeArabicLoose(modTrim.toLowerCase());
+  if(!modTrim||modLower===kwLower) return null;
+  if(modLower.startsWith(kwLower)){
+    const stripped=modTrim.slice(kw.length).trim();
+    return stripped||null;
+  }
+  return modTrim;
+}
+
 // Arabic proclitics — attach directly to the following word with NO space
 // (ال = "the", و = "and", ب = "with/in", ل = "for", ك = "like", plus common
 // two-letter combinations). A plain letter-prefix crawl can never produce
@@ -797,16 +822,33 @@ async function fetchArabicExtras(kw,hint,dialectUsed){
 
 // Batch-translates keywords to English, using the `translations` cache so the
 // same keyword is never sent twice. No-op for English runs (nothing to gloss).
-async function translateKeywords(items){
+// Chunked client-side — same reasoning as sortInChunks: one small request per
+// batch so nothing can run long enough to hit a serverless timeout.
+async function translateKeywords(items,onProgress){
   if(currentLangCode==='en'||!items.length) return;
   const toSend=[...new Set(items.map(i=>i.kw).filter(kw=>!(kw.toLowerCase() in translations)))];
   if(!toSend.length) return;
-  try{
-    const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({keywords:toSend,source_lang:currentLangCode})});
-    const d=await r.json();
-    (d.translations||[]).forEach(t=>{translations[t.kw.toLowerCase()]=t.en;});
-  }catch(e){console.warn('Translate failed:',e);}
+
+  const CHUNK=50;
+  const chunks=[];
+  for(let i=0;i<toSend.length;i+=CHUNK) chunks.push(toSend.slice(i,i+CHUNK));
+
+  for(let ci=0; ci<chunks.length; ci++){
+    if(ci>0) await sleep(4000);
+    try{
+      const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({keywords:chunks[ci],source_lang:currentLangCode})});
+      const rawText=await r.text();
+      let d;
+      try{ d=JSON.parse(rawText); }
+      catch{ throw new Error(`server didn't return valid JSON (got: "${rawText.slice(0,80)}")`); }
+      (d.translations||[]).forEach(t=>{translations[t.kw.toLowerCase()]=t.en;});
+    }catch(e){
+      console.warn(`Translate chunk ${ci+1}/${chunks.length} failed:`,e);
+      // leave these as untranslated (missing from cache) rather than throwing the whole operation away
+    }
+    if(onProgress) onProgress(Math.min((ci+1)*CHUNK,toSend.length),toSend.length);
+  }
 }
 
 async function translateAndRerender(tab,btn){
@@ -814,7 +856,7 @@ async function translateAndRerender(tab,btn){
   if(!data.length){alert('Nothing to translate yet.');return;}
   const origLabel=btn?btn.textContent:null;
   if(btn){btn.disabled=true;btn.textContent='⏳ Translating...';}
-  await translateKeywords(data);
+  await translateKeywords(data,(done,total)=>{if(btn)btn.textContent=`⏳ Translating ${done}/${total}...`;});
   renderTable(tab);
   applyLangColumnVisibility();
   if(btn){btn.disabled=false;btn.textContent=origLabel;}
@@ -977,10 +1019,10 @@ async function startRun(){
   const DEFS={
     1:{label:'S1_Suffix',  queries:alphabet.map(c=>`${kw} ${c}`)},
     2:{label:'S2_Prefix',  queries:[...alphabet.map(c=>`${c} ${kw}`),...proclitics.map(p=>`${p}${kw}`)]},
-    3:{label:'S3_Question',queries:[...(m.s3_question_prefixes||['how to','why','what is','is']).map(p=>`${p} ${kw}`),(m.s3_question_suffixes||['safe','free']).map(s=>`${kw} ${s}`)].flat()},
-    4:{label:'S4_Platform',queries:(m.s4_platform||[]).map(p=>`${kw} ${p}`)},
-    5:{label:'S5_Problem', queries:(m.s5_problem||[]).map(p=>`${kw} ${p}`)},
-    6:{label:'S6_Context', queries:(m.s6_context||[]).map(p=>`${kw} ${p}`)},
+    3:{label:'S3_Question',queries:[...(m.s3_question_prefixes||['how to','why','what is','is']).map(p=>`${p} ${kw}`),(m.s3_question_suffixes||['safe','free']).map(s=>cleanSuffixModifier(kw,s)).filter(Boolean).map(s=>`${kw} ${s}`)].flat()},
+    4:{label:'S4_Platform',queries:(m.s4_platform||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean).map(p=>`${kw} ${p}`)},
+    5:{label:'S5_Problem', queries:(m.s5_problem||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean).map(p=>`${kw} ${p}`)},
+    6:{label:'S6_Context', queries:(m.s6_context||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean).map(p=>`${kw} ${p}`)},
     7:{label:'S7_Number',  queries:(m.s7_numbers||['2024','2025']).map(n=>`${kw} ${n}`)},
     8:{label:'S8_Double',  queries:(()=>{const q=[];const a10=alphabet.slice(0,10);a10.forEach(a=>a10.forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
     9:{label:'S9_Natural', queries:m.s9_custom||[]},
@@ -1263,10 +1305,10 @@ function buildInspector(d,kw){
   const modMap={
     1:{mods:null,formula:`"${kw}" + ${a0}/${a1}/${a2}...${aLast}`,natural:false,autoCount:insAlphabet.length,autoA:a0,autoB:a1},
     2:{mods:null,formula:`${a0}/${a1}/${a2}...${aLast} + "${kw}"`,natural:false,autoCount:insAlphabet.length,autoA:a0,autoB:a1},
-    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])],formula:`"how to ${kw}", "${kw} safe"...`,natural:false},
-    4:{mods:m.s4_platform||[],formula:`"${kw}" + [each platform modifier]`,natural:false},
-    5:{mods:m.s5_problem||[],formula:`"${kw}" + [each problem modifier]`,natural:false},
-    6:{mods:m.s6_context||[],formula:`"${kw}" + [each context modifier]`,natural:false},
+    3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[]).map(s=>cleanSuffixModifier(kw,s)).filter(Boolean)],formula:`"how to ${kw}", "${kw} safe"...`,natural:false},
+    4:{mods:(m.s4_platform||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean),formula:`"${kw}" + [each platform modifier]`,natural:false},
+    5:{mods:(m.s5_problem||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean),formula:`"${kw}" + [each problem modifier]`,natural:false},
+    6:{mods:(m.s6_context||[]).map(p=>cleanSuffixModifier(kw,p)).filter(Boolean),formula:`"${kw}" + [each context modifier]`,natural:false},
     7:{mods:m.s7_numbers||[],formula:`"${kw}" + [each number/version]`,natural:false},
     8:{mods:null,formula:`"${kw}" + ${a0}${a0}/${a0}${a1}...`,natural:false,autoCount:Math.min(insAlphabet.length,10)**2,autoA:`${a0}${a0}`,autoB:`${a0}${a1}`},
     9:{mods:m.s9_custom||[],formula:`[full AI-generated NATURAL query, NOT glued]`,natural:true},
