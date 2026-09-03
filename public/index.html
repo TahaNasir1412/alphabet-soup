@@ -339,6 +339,8 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       <label class="stog" title="AA AB AC... deep long-tail (slow)"><input type="checkbox" value="8"><div class="stog-dot"></div>S8 Deep</label>
       <label class="stog on" title="AI-generated NATURAL queries — most valuable sweep"><input type="checkbox" value="9" checked><div class="stog-dot"></div>S9 AI Natural</label>
       <label class="stog on" title="watch/download/best/free + keyword"><input type="checkbox" value="10" checked><div class="stog-dot"></div>S10 Wildcard</label>
+      <label class="stog" title="Arabic only — keyword typed in Latin/chat script (2,3,7...) for mobile/informal search volume" id="stog-11"><input type="checkbox" value="11"><div class="stog-dot"></div>S11 Arabizi</label>
+      <label class="stog" title="Alternate hamza/ة-ه/accent spellings of the keyword, each with its own suffix crawl" id="stog-12"><input type="checkbox" value="12"><div class="stog-dot"></div>S12 Spelling</label>
     </div>
   </div>
 
@@ -450,6 +452,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
         <div class="results-actions">
           <button class="btn" onclick="exportCSV('collected')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('collected')">📋 Copy all</button>
+          <button class="btn" onclick="translateAndRerender('collected',this)">🌐 Translate</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -457,7 +460,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
       <div class="tbl-wrap">
         <table class="kw-table">
-          <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Keyword</th><th class="col-en">English</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
           <tbody id="tbody-collected"></tbody>
         </table>
       </div>
@@ -470,6 +473,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
           <button class="btn" onclick="exportCSV('relevant')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('relevant')">📋 Copy all</button>
           <button class="btn g" onclick="addToBank()">+ Add to Bank</button>
+          <button class="btn" onclick="translateAndRerender('relevant',this)">🌐 Translate</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -489,7 +493,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
       <div class="tbl-wrap">
         <table class="kw-table">
-          <thead><tr><th>#</th><th>Keyword</th><th>Intent</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Keyword</th><th class="col-en">English</th><th>Intent</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
           <tbody id="tbody-rel"></tbody>
         </table>
       </div>
@@ -503,6 +507,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
           <button class="btn a" onclick="copyAll('review')">📋 Copy all</button>
           <button class="btn g" onclick="bulkMoveReviewToRelevant()">→ Mark selected as Relevant</button>
           <button class="btn" id="filter-ai-btn" onclick="filterReviewWithAI()" style="border-color:var(--ob2);background:var(--ob);color:var(--orange)">🤖 Filter with AI</button>
+          <button class="btn" onclick="translateAndRerender('review',this)">🌐 Translate</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -510,7 +515,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
       <div class="tbl-wrap">
         <table class="kw-table">
-          <thead><tr><th><input type="checkbox" id="review-select-all" onchange="toggleSelectAllReview(this)"></th><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="review-select-all" onchange="toggleSelectAllReview(this)"></th><th>#</th><th>Keyword</th><th class="col-en">English</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
           <tbody id="tbody-review"></tbody>
         </table>
       </div>
@@ -523,6 +528,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
           <button class="btn" onclick="exportCSV('filtered')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('filtered')">📋 Copy all</button>
           <button class="btn g" onclick="bulkMoveFilteredToRelevant()">→ Move all to Relevant</button>
+          <button class="btn" onclick="translateAndRerender('filtered',this)">🌐 Translate</button>
         </div>
       </div>
       <div class="filter-bar">
@@ -530,7 +536,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
       <div class="tbl-wrap">
         <table class="kw-table">
-          <thead><tr><th>#</th><th>Keyword</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Keyword</th><th class="col-en">English</th><th>Sweep</th><th>Built from</th><th></th></tr></thead>
           <tbody id="tbody-filtered"></tbody>
         </table>
       </div>
@@ -584,6 +590,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
         <div class="results-actions">
           <button class="btn" onclick="exportCSV('bank')">⬇ CSV</button>
           <button class="btn a" onclick="copyAll('bank')">📋 Copy all</button>
+          <button class="btn" onclick="translateAndRerender('bank',this)">🌐 Translate</button>
           <button class="btn" style="color:var(--red);border-color:var(--rb2)" onclick="clearBank()">🗑 Clear bank</button>
         </div>
       </div>
@@ -593,7 +600,7 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
       </div>
       <div class="tbl-wrap">
         <table class="kw-table">
-          <thead><tr><th>#</th><th>Keyword</th><th>Intent</th><th>Keyword run</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Keyword</th><th class="col-en">English</th><th>Intent</th><th>Keyword run</th><th></th></tr></thead>
           <tbody id="tbody-bank"></tbody>
         </table>
       </div>
@@ -614,11 +621,11 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
 </div>
 
 <script>
-const SC={1:'#7c6fe0',2:'#06b6d4',3:'#10b981',4:'#f59e0b',5:'#ef4444',6:'#8b5cf6',7:'#ec4899',8:'#14b8a6',9:'#f97316',10:'#84cc16'};
-const SN={1:'S1_Suffix',2:'S2_Prefix',3:'S3_Question',4:'S4_Platform',5:'S5_Problem',6:'S6_Context',7:'S7_Number',8:'S8_Double',9:'S9_Natural',10:'S10_Wild'};
+const SC={1:'#7c6fe0',2:'#06b6d4',3:'#10b981',4:'#f59e0b',5:'#ef4444',6:'#8b5cf6',7:'#ec4899',8:'#14b8a6',9:'#f97316',10:'#84cc16',11:'#d946ef',12:'#eab308'};
+const SN={1:'S1_Suffix',2:'S2_Prefix',3:'S3_Question',4:'S4_Platform',5:'S5_Problem',6:'S6_Context',7:'S7_Number',8:'S8_Double',9:'S9_Natural',10:'S10_Wild',11:'S11_Arabizi',12:'S12_Spelling'};
 const SMETA={
   1:{name:'S1 — Suffix A to Z',desc:'Appends every letter a–z after your keyword'},
-  2:{name:'S2 — Prefix A to Z',desc:'Prepends every letter a–z before your keyword'},
+  2:{name:'S2 — Prefix A to Z',desc:'Prepends every letter a–z before your keyword. For Arabic, also glues on ال/و/ب/ل/ك with no space, since those attach directly to the noun.'},
   3:{name:'S3 — Questions',desc:'Question words before keyword + qualifier words after'},
   4:{name:'S4 — Platform',desc:'AI-generated platform, device, access modifiers (glued)'},
   5:{name:'S5 — Problems',desc:'AI-generated failure, error, alternative modifiers (glued)'},
@@ -627,6 +634,8 @@ const SMETA={
   8:{name:'S8 — Deep (Double-char)',desc:'Two-letter combos aa/ab/ac... for deep long-tail'},
   9:{name:'S9 — AI Natural',desc:'Complete NATURAL phrases — not concatenation. Word order varies realistically. Most valuable sweep.'},
   10:{name:'S10 — Wildcard',desc:'Action-first intent variants: watch/download/best + keyword'},
+  11:{name:'S11 — Arabizi',desc:'Arabic keyword in Latin/chat script (2,3,7,8... for sounds with no direct Latin letter) — mobile & informal search volume. Arabic only.'},
+  12:{name:'S12 — Spelling Variants',desc:'Alternate spellings (e.g. Arabic hamza/ة-ه, accented vs unaccented) that Google indexes separately. Each variant also gets its own Suffix A-Z crawl.'},
 };
 const IC={'navigational':'int-nav','download':'int-dl','streaming':'int-stream','informational':'int-info','commercial':'int-comm','transactional':'int-trans','local':'int-local','troubleshoot':'int-trouble'};
 
@@ -648,6 +657,12 @@ function resolveAlphabet(lang,d){
   return DEFAULT_ALPHABETS[lang]||DEFAULT_ALPHABETS.en;
 }
 
+// Arabic proclitics — attach directly to the following word with NO space
+// (ال = "the", و = "and", ب = "with/in", ل = "for", ك = "like", plus common
+// two-letter combinations). A plain letter-prefix crawl can never produce
+// these since it always inserts a space; Arabic search behavior needs both.
+const ARABIC_PROCLITICS=['ال','و','ب','ل','ك','ف','وال','بال','كال','فال','لل'];
+
 let collected=[],relevant=[],noise=[],review=[],filteredTab=[],queryLog=[],stopFlag=false,running=false,modData=null;
 let sortDone=false;
 let strictOn=true,saveNoise=true,activeTab='relevant';
@@ -655,6 +670,8 @@ let sweepFilterRel=new Set(),currentKw='';
 let bank=JSON.parse(localStorage.getItem('kw_bank')||'[]');
 let intentRules=null,coreTokens=[];
 let savedSweepState=null;
+let currentLangCode='en'; // language the current keyword run was swept in — drives the English-translation column
+let translations={}; // lowercase kw -> English gloss ('' or null = not yet translated / translation failed)
 
 const SESSION_KEY='as_session_v5';
 
@@ -662,10 +679,20 @@ document.querySelectorAll('.stog').forEach(l=>{
   l.addEventListener('click',()=>{const cb=l.querySelector('input');setTimeout(()=>l.classList.toggle('on',cb.checked),0)});
 });
 document.getElementById('kw-input').addEventListener('keydown',e=>{if(e.key==='Enter')startRun()});
+document.getElementById('lang-select').addEventListener('change',function(){
+  const isAr=this.value==='ar';
+  ['11','12'].forEach(v=>{
+    const cb=document.querySelector(`#sweep-toggles input[value="${v}"]`);
+    if(!cb)return;
+    cb.checked=isAr;
+    cb.closest('.stog').classList.toggle('on',isAr);
+  });
+});
 checkAIStatus();
 renderTable('bank');
 updateBankBadge();
 checkForSavedSession();
+applyLangColumnVisibility();
 
 // ── AI STATUS ─────────────────────────────────────────────────────────────────
 async function checkAIStatus(){
@@ -758,6 +785,44 @@ async function fetchModifiers(kw,hint,lang){
   return await r.json();
 }
 
+async function fetchArabicExtras(kw,hint,dialectUsed){
+  const r=await fetch('/api/arabic-extras',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({keyword:kw,niche_hint:hint,dialect_used:dialectUsed})});
+  return await r.json();
+}
+
+// Batch-translates keywords to English, using the `translations` cache so the
+// same keyword is never sent twice. No-op for English runs (nothing to gloss).
+async function translateKeywords(items){
+  if(currentLangCode==='en'||!items.length) return;
+  const toSend=[...new Set(items.map(i=>i.kw).filter(kw=>!(kw.toLowerCase() in translations)))];
+  if(!toSend.length) return;
+  try{
+    const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keywords:toSend,source_lang:currentLangCode})});
+    const d=await r.json();
+    (d.translations||[]).forEach(t=>{translations[t.kw.toLowerCase()]=t.en;});
+  }catch(e){console.warn('Translate failed:',e);}
+}
+
+async function translateAndRerender(tab,btn){
+  const data=getDataset(tab);
+  if(!data.length){alert('Nothing to translate yet.');return;}
+  const origLabel=btn?btn.textContent:null;
+  if(btn){btn.disabled=true;btn.textContent='⏳ Translating...';}
+  await translateKeywords(data);
+  renderTable(tab);
+  applyLangColumnVisibility();
+  if(btn){btn.disabled=false;btn.textContent=origLabel;}
+}
+
+// Shows/hides the "English" gloss column — hidden entirely for English runs
+// since translating English into English would be redundant clutter.
+function applyLangColumnVisibility(){
+  const show=currentLangCode!=='en';
+  document.querySelectorAll('.col-en').forEach(el=>el.style.display=show?'':'none');
+}
+
 async function classifyKeywords(keywords){
   if(!keywords.length||!intentRules) return {};
   try{
@@ -775,6 +840,7 @@ function saveSession(){
   try{
     const session={
       currentKw,collected,relevant,noise,review,filteredTab,queryLog,modData,coreTokens,sortDone,
+      currentLangCode,translations,
       timestamp:Date.now(),
       complete: !running
     };
@@ -808,6 +874,8 @@ function restoreSession(){
   queryLog=s.queryLog||[];
   modData=s.modData;
   coreTokens=s.coreTokens||[];
+  currentLangCode=s.currentLangCode||modData?.output_language||'en';
+  translations=s.translations||{};
   $('kw-input').value=currentKw;
   $('session-banner').classList.remove('show');
   $('empty-state').style.display='none';
@@ -818,6 +886,7 @@ function restoreSession(){
   if(filteredTab.length){$('filtered-tab-btn').style.display='flex';renderTable('filtered');}
   if(sortDone){$('sort-ai-banner').classList.remove('show');}
   updateBadges();
+  applyLangColumnVisibility();
 }
 
 function dismissSession(){
@@ -852,6 +921,9 @@ async function startRun(){
 
   const geo=$('geo-select').value;
   const lang=$('lang-select').value;
+  currentLangCode=lang;
+  translations={};
+  applyLangColumnVisibility();
   const delay=+$('delay-input').value||700;
   const hint=$('niche-hint').value.trim();
   const sweeps=getSelectedSweeps();
@@ -862,6 +934,19 @@ async function startRun(){
     modData=await fetchModifiers(kw,hint,lang);
     if(modData.intent_rules) intentRules=modData.intent_rules;
     if(modData.core_entity_tokens) coreTokens=modData.core_entity_tokens;
+
+    if(lang==='ar'){
+      setStatus('Generating Arabizi (chat-script) variants...',7);
+      try{
+        const extras=await fetchArabicExtras(kw,hint,modData.dialect_used);
+        modData.arabizi_keyword=extras.arabizi_keyword||'';
+        modData.sweeps=modData.sweeps||{};
+        modData.sweeps.s11_arabizi=extras.s11_arabizi||[];
+      }catch(e){
+        console.warn('Arabic extras fetch failed:',e);
+      }
+    }
+
     renderNicheCard(modData);
     renderInspector(modData,kw);
 
@@ -881,10 +966,11 @@ async function startRun(){
   const resolvedGeo=geo==='auto'?(modData.geo_recommendation||'us'):geo;
   const m=modData.sweeps||{};
   const alphabet=resolveAlphabet(lang,modData);
+  const proclitics=(lang==='ar')?ARABIC_PROCLITICS:[];
 
   const DEFS={
     1:{label:'S1_Suffix',  queries:alphabet.map(c=>`${kw} ${c}`)},
-    2:{label:'S2_Prefix',  queries:alphabet.map(c=>`${c} ${kw}`)},
+    2:{label:'S2_Prefix',  queries:[...alphabet.map(c=>`${c} ${kw}`),...proclitics.map(p=>`${p}${kw}`)]},
     3:{label:'S3_Question',queries:[...(m.s3_question_prefixes||['how to','why','what is','is']).map(p=>`${p} ${kw}`),(m.s3_question_suffixes||['safe','free']).map(s=>`${kw} ${s}`)].flat()},
     4:{label:'S4_Platform',queries:(m.s4_platform||[]).map(p=>`${kw} ${p}`)},
     5:{label:'S5_Problem', queries:(m.s5_problem||[]).map(p=>`${kw} ${p}`)},
@@ -893,6 +979,8 @@ async function startRun(){
     8:{label:'S8_Double',  queries:(()=>{const q=[];const a10=alphabet.slice(0,10);a10.forEach(a=>a10.forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
     9:{label:'S9_Natural', queries:m.s9_custom||[]},
     10:{label:'S10_Wild',  queries:m.s10_wildcard||[]},
+    11:{label:'S11_Arabizi',queries:(lang==='ar')?(m.s11_arabizi||[]):[]},
+    12:{label:'S12_Spelling',queries:(()=>{const variants=m.s12_spelling_variants||[];const q=[];variants.forEach(v=>{q.push(v);alphabet.forEach(c=>q.push(`${v} ${c}`));});return q;})()},
   };
 
   await runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, 0, 0);
@@ -1122,6 +1210,8 @@ function renderNicheCard(d){
     <div class="ni"><div class="k">Market · Geo</div><div class="v">${esc(d.primary_market||'—')} <span class="tag tag-muted">${d.geo_recommendation||'—'}</span></div></div>
     <div class="ni"><div class="k">What user wants</div><div class="v" style="font-size:11px;color:var(--muted)">${esc(d.intent_summary||'—')}</div></div>
     ${d.output_language&&d.output_language!=='en'?`<div class="ni"><div class="k">Native alphabet (S1/S2/S8)</div><div class="v" style="font-size:12px" dir="auto">${(d.native_alphabet||[]).map(esc).join(' ')||'—'} <span style="color:var(--dim);font-size:10px">(${(d.native_alphabet||[]).length} chars)</span></div></div>`:''}
+    ${d.dialect_used?`<div class="ni"><div class="k">Dialect</div><div class="v"><span class="tag tag-a">${esc(d.dialect_used)}</span></div></div>`:''}
+    ${d.arabizi_keyword?`<div class="ni"><div class="k">Arabizi (S11)</div><div class="v" style="font-size:12px">${esc(d.arabizi_keyword)}</div></div>`:''}
   `;
   let notesHtml=esc(d.niche_notes||'');
   if(d._ai_error){notesHtml+=`<span class="err">⚠ AI error: ${esc(d._ai_error)}</span>`;}
@@ -1153,10 +1243,12 @@ function buildInspector(d,kw){
     8:{mods:null,formula:`"${kw}" + ${a0}${a0}/${a0}${a1}...`,natural:false,autoCount:Math.min(insAlphabet.length,10)**2,autoA:`${a0}${a0}`,autoB:`${a0}${a1}`},
     9:{mods:m.s9_custom||[],formula:`[full AI-generated NATURAL query, NOT glued]`,natural:true},
     10:{mods:m.s10_wildcard||[],formula:`watch "${kw}", download "${kw}"...`,natural:false},
+    11:{mods:m.s11_arabizi||[],formula:`[full Arabizi/chat-script query — Arabic only]`,natural:true},
+    12:{mods:m.s12_spelling_variants||[],formula:`each variant → itself + its own Suffix A-Z crawl`,natural:true},
   };
   const selectedSweeps=getSelectedSweeps();
 
-  for(let num=1;num<=10;num++){
+  for(let num=1;num<=12;num++){
     const meta=SMETA[num];
     const mp=modMap[num];
     const color=SC[num]||'#888';
@@ -1210,7 +1302,7 @@ function toggleSweepBody(num){
 }
 
 function updateInspectorCounts(){
-  for(let i=1;i<=10;i++){
+  for(let i=1;i<=12;i++){
     const el=$(`sc-count-${i}`);if(!el)continue;
     el.textContent=`${collected.filter(k=>k.sweep===SN[i]).length} collected`;
   }
@@ -1227,6 +1319,14 @@ function renderTable(tab){
   else if(tab==='qlog')renderQueryLog();
 }
 
+// English gloss cell — hidden via .col-en visibility toggle for English runs.
+// '—' = not translated yet, translation itself can also legitimately be '—'-like short text.
+function enCell(kw){
+  const t=translations[kw.toLowerCase()];
+  const txt=(t===undefined)?'—':(t===null?'<span style="color:var(--dim)">translation failed</span>':esc(t));
+  return `<td class="col-en" style="color:var(--muted);font-size:11px">${txt}</td>`;
+}
+
 function renderCollected(){
   const filter=$('filter-collected')?.value?.toLowerCase()||'';
   const filtered=collected.filter(k=>k.kw.toLowerCase().includes(filter));
@@ -1238,6 +1338,7 @@ function renderCollected(){
     return`<tr>
       <td style="color:var(--dim);font-size:10px">${i+1}</td>
       <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      ${enCell(k.kw)}
       <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
       <td class="built-from">${mod}</td>
       <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
@@ -1256,6 +1357,7 @@ function renderFiltered(){
     return`<tr>
       <td style="color:var(--dim);font-size:10px">${i+1}</td>
       <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      ${enCell(k.kw)}
       <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
       <td class="built-from">${mod}</td>
       <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
@@ -1310,6 +1412,7 @@ function renderRelevant(){
     return`<tr>
       <td style="color:var(--dim);font-size:10px">${i+1}</td>
       <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      ${enCell(k.kw)}
       <td>${k.intent?`<span class="intent-badge ${ic}">${k.intent}</span>`:''}</td>
       <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
       <td class="built-from">${mod}</td>
@@ -1341,6 +1444,7 @@ function renderReview(){
       <td><input type="checkbox" class="review-check" data-kw="${esc(k.kw)}"></td>
       <td style="color:var(--dim);font-size:10px">${i+1}</td>
       <td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')" title="click to copy">${esc(k.kw)}</span></td>
+      ${enCell(k.kw)}
       <td><span class="sw-badge" style="background:${color}18;color:${color};border:1px solid ${color}33">${k.sweep}</span></td>
       <td class="built-from">${mod}</td>
       <td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td>
@@ -1400,7 +1504,7 @@ function renderBank(){
   $('bank-info').textContent=`${bank.length} total · ${[...new Set(bank.map(k=>k.run))].length} keyword runs`;
   $('tbody-bank').innerHTML=filtered.map((k,i)=>{
     const ic=IC[k.intent]||'int-unknown';
-    return`<tr><td style="color:var(--dim);font-size:10px">${i+1}</td><td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td><td>${k.intent?`<span class="intent-badge ${ic}">${k.intent}</span>`:''}</td><td style="font-size:10px;color:var(--muted);font-family:var(--mono)">${esc(k.run||'')}</td><td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td></tr>`;
+    return`<tr><td style="color:var(--dim);font-size:10px">${i+1}</td><td><span class="kw-text" onclick="copyKw('${esc(k.kw)}')">${esc(k.kw)}</span></td>${enCell(k.kw)}<td>${k.intent?`<span class="intent-badge ${ic}">${k.intent}</span>`:''}</td><td style="font-size:10px;color:var(--muted);font-family:var(--mono)">${esc(k.run||'')}</td><td class="copy-cell" onclick="copyKw('${esc(k.kw)}')">copy</td></tr>`;
   }).join('');
 }
 
@@ -1458,7 +1562,11 @@ function getDataset(tab){
 
 function exportCSV(tab){
   const data=getDataset(tab);
-  const rows=['Keyword,Intent,Sweep,Run',...data.map(k=>`"${(k.kw||'').replace(/"/g,'""')}","${k.intent||''}","${k.sweep||''}","${k.run||''}"`)];
+  const rows=['Keyword,English,Intent,Sweep,Run',...data.map(k=>{
+    const en=translations[(k.kw||'').toLowerCase()];
+    const enText=(en===undefined||en===null)?'':en;
+    return `"${(k.kw||'').replace(/"/g,'""')}","${enText.replace(/"/g,'""')}","${k.intent||''}","${k.sweep||''}","${k.run||''}"`;
+  })];
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
   a.download=`keywords_${currentKw.replace(/\s+/g,'_')}_${tab}.csv`;
