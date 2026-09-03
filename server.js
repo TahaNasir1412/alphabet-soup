@@ -169,10 +169,10 @@ Return this exact JSON:
   "dialect_used": "if output_language is \\"ar\\": which Arabic dialect the modifiers above are biased toward (e.g. \\"Egyptian Arabic\\", \\"Gulf/Khaleeji Arabic\\", \\"Modern Standard Arabic\\") — see STEP 3. Empty string otherwise.",
   "sweeps": {
     "s3_question_prefixes": ["minimum 12 question openers"],
-    "s3_question_suffixes": ["minimum 18 qualifiers"],
-    "s4_platform": ["minimum 25 modifiers — APPENDED after keyword"],
-    "s5_problem": ["minimum 20 modifiers — APPENDED after keyword"],
-    "s6_context": ["minimum 18 modifiers — APPENDED after keyword"],
+    "s3_question_suffixes": ["minimum 18 SHORT standalone qualifiers — APPENDED after keyword, same rule as s4_platform: never repeat the base keyword inside the qualifier string, and never include the bare keyword itself as an entry."],
+    "s4_platform": ["minimum 25 SHORT standalone modifiers — APPENDED after keyword. Each entry must NOT contain the base keyword itself: write \"app\", NOT \"${keyword} app\" — the tool glues them together automatically, so repeating the keyword inside the modifier produces a doubled, unnatural query."],
+    "s5_problem": ["minimum 20 SHORT standalone modifiers — APPENDED after keyword. Same rule as s4_platform: never repeat the base keyword inside the modifier string."],
+    "s6_context": ["minimum 18 SHORT standalone modifiers — APPENDED after keyword. Same rule as s4_platform: never repeat the base keyword inside the modifier string."],
     "s7_numbers": ["all relevant numbers"],
     "s9_custom": ["minimum 25 COMPLETE NATURAL QUERIES — NOT keyword+modifier concatenation. Full standalone phrases with the core entity in NATURAL word order, sometimes at start, middle, or implied. Include reordered variants, question forms, zero-extra-word generic forms. MOST important field for real search behaviour."],
     "s10_wildcard": ["minimum 15 intent-variant queries in varied natural order"],
@@ -591,45 +591,36 @@ app.post('/api/translate', async (req, res) => {
     return res.json({ translations: keywords.map(kw => ({ kw, en: null })), _note: 'No AI provider configured' });
   }
 
-  const CHUNK = 50;
-  const chunks = [];
-  for (let i = 0; i < keywords.length; i += CHUNK) chunks.push(keywords.slice(i, i + CHUNK));
-
-  let all = [];
-  for (let ci = 0; ci < chunks.length; ci++) {
-    const chunk = chunks[ci];
-    if (ci > 0) await new Promise(r => setTimeout(r, 4000));
-
-    const prompt = buildTranslatePrompt(chunk, source_lang);
-    try {
-      let raw = '';
-      if (provider === 'gemini') raw = await callGemini(prompt);
-      else if (provider === 'anthropic') raw = await callAnthropic(prompt);
-      else if (provider === 'groq') raw = await callGroq(prompt);
-      else if (provider === 'openai') raw = await callOpenAI(prompt);
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      all.push(...(parsed.translations || []));
-    } catch (e) {
-      console.error(`Translate chunk ${ci + 1} primary failed: ${e.message}`);
-      if (provider !== 'groq' && PROVIDERS.groq.key) {
-        try {
-          await new Promise(r => setTimeout(r, 3000));
-          const raw = await callGroq(prompt);
-          const clean = raw.replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(clean);
-          all.push(...(parsed.translations || []));
-          continue;
-        } catch (e2) {
-          console.error(`Translate chunk ${ci + 1} groq fallback failed: ${e2.message}`);
-        }
+  // NOTE: one batch per call — no internal chunking loop, no delays inside
+  // the request. Same fix as /api/sort: chunking + pacing large lists is the
+  // CLIENT's job, since a single request looping over many chunks reliably
+  // exceeds a serverless timeout no matter how it's tuned.
+  const prompt = buildTranslatePrompt(keywords, source_lang);
+  try {
+    let raw = '';
+    if (provider === 'gemini') raw = await callGemini(prompt);
+    else if (provider === 'anthropic') raw = await callAnthropic(prompt);
+    else if (provider === 'groq') raw = await callGroq(prompt);
+    else if (provider === 'openai') raw = await callOpenAI(prompt);
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    return res.json({ translations: parsed.translations || [] });
+  } catch (e) {
+    console.error(`Translate batch (${provider}) failed: ${e.message}`);
+    if (provider !== 'groq' && PROVIDERS.groq.key) {
+      try {
+        const raw = await callGroq(prompt);
+        const clean = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        return res.json({ translations: parsed.translations || [] });
+      } catch (e2) {
+        console.error(`Translate batch groq fallback failed: ${e2.message}`);
       }
-      // Honest failure for this chunk — null, not a fabricated/untranslated guess.
-      all.push(...chunk.map(kw => ({ kw, en: null })));
     }
   }
 
-  res.json({ translations: all });
+  // Honest failure for this batch — null, not a fabricated/untranslated guess.
+  res.json({ translations: keywords.map(kw => ({ kw, en: null })) });
 });
 
 // ── SORT ENDPOINT ─────────────────────────────────────────────────────────────
