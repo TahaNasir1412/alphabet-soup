@@ -320,6 +320,8 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
         <option value="id">Indonesian 🇮🇩</option>
         <option value="pl">Polish 🇵🇱</option>
         <option value="nl">Dutch 🇳🇱</option>
+        <option value="ru">Russian 🇷🇺</option>
+        <option value="ur">Urdu 🇵🇰</option>
       </select>
     </div>
   </div>
@@ -628,6 +630,24 @@ const SMETA={
 };
 const IC={'navigational':'int-nav','download':'int-dl','streaming':'int-stream','informational':'int-info','commercial':'int-comm','transactional':'int-trans','local':'int-local','troubleshoot':'int-trouble'};
 
+// ── NATIVE ALPHABET RESOLUTION (S1/S2/S8) ──────────────────────────────────────
+// English always uses the hardcoded Latin a-z, unchanged from before — this
+// guarantees zero behavior change for existing English runs. Every other
+// language uses the AI-generated modData.native_alphabet (per-request, so it
+// reflects the real script), falling back to a small built-in table, and
+// finally to Latin a-z as a last resort so the sweep never breaks.
+const DEFAULT_ALPHABETS={
+  en:'abcdefghijklmnopqrstuvwxyz'.split(''),
+  ar:['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
+  ur:['ا','ب','پ','ت','ٹ','ث','ج','چ','ح','خ','د','ڈ','ذ','ر','ڑ','ز','ژ','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ک','گ','ل','م','ن','و','ہ','ی'],
+  ru:['а','б','в','г','д','е','ё','ж','з','и','й','к','л','м','н','о','п','р','с','т','у','ф','х','ц','ч','ш','щ','ъ','ы','ь','э','ю','я'],
+};
+function resolveAlphabet(lang,d){
+  if(lang==='en') return DEFAULT_ALPHABETS.en;
+  if(d&&Array.isArray(d.native_alphabet)&&d.native_alphabet.length) return d.native_alphabet;
+  return DEFAULT_ALPHABETS[lang]||DEFAULT_ALPHABETS.en;
+}
+
 let collected=[],relevant=[],noise=[],review=[],filteredTab=[],queryLog=[],stopFlag=false,running=false,modData=null;
 let sortDone=false;
 let strictOn=true,saveNoise=true,activeTab='relevant';
@@ -860,7 +880,7 @@ async function startRun(){
 
   const resolvedGeo=geo==='auto'?(modData.geo_recommendation||'us'):geo;
   const m=modData.sweeps||{};
-  const alphabet='abcdefghijklmnopqrstuvwxyz'.split('');
+  const alphabet=resolveAlphabet(lang,modData);
 
   const DEFS={
     1:{label:'S1_Suffix',  queries:alphabet.map(c=>`${kw} ${c}`)},
@@ -870,7 +890,7 @@ async function startRun(){
     5:{label:'S5_Problem', queries:(m.s5_problem||[]).map(p=>`${kw} ${p}`)},
     6:{label:'S6_Context', queries:(m.s6_context||[]).map(p=>`${kw} ${p}`)},
     7:{label:'S7_Number',  queries:(m.s7_numbers||['2024','2025']).map(n=>`${kw} ${n}`)},
-    8:{label:'S8_Double',  queries:(()=>{const q=[];'abcdefghij'.split('').forEach(a=>'abcdefghij'.split('').forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
+    8:{label:'S8_Double',  queries:(()=>{const q=[];const a10=alphabet.slice(0,10);a10.forEach(a=>a10.forEach(b=>q.push(`${kw} ${a}${b}`)));return q;})()},
     9:{label:'S9_Natural', queries:m.s9_custom||[]},
     10:{label:'S10_Wild',  queries:m.s10_wildcard||[]},
   };
@@ -1101,6 +1121,7 @@ function renderNicheCard(d){
     <div class="ni"><div class="k">Intent</div><div class="v"><span class="tag tag-a">${esc(d.intent||'—')}</span></div></div>
     <div class="ni"><div class="k">Market · Geo</div><div class="v">${esc(d.primary_market||'—')} <span class="tag tag-muted">${d.geo_recommendation||'—'}</span></div></div>
     <div class="ni"><div class="k">What user wants</div><div class="v" style="font-size:11px;color:var(--muted)">${esc(d.intent_summary||'—')}</div></div>
+    ${d.output_language&&d.output_language!=='en'?`<div class="ni"><div class="k">Native alphabet (S1/S2/S8)</div><div class="v" style="font-size:12px" dir="auto">${(d.native_alphabet||[]).map(esc).join(' ')||'—'} <span style="color:var(--dim);font-size:10px">(${(d.native_alphabet||[]).length} chars)</span></div></div>`:''}
   `;
   let notesHtml=esc(d.niche_notes||'');
   if(d._ai_error){notesHtml+=`<span class="err">⚠ AI error: ${esc(d._ai_error)}</span>`;}
@@ -1118,15 +1139,18 @@ function buildInspector(d,kw){
   const m=d.sweeps||{};
   const list=$('sweep-list');
   list.innerHTML='';
+  const lang=d.output_language||$('lang-select')?.value||'en';
+  const insAlphabet=resolveAlphabet(lang,d);
+  const a0=insAlphabet[0]||'a',a1=insAlphabet[1]||'b',a2=insAlphabet[2]||'c',aLast=insAlphabet[insAlphabet.length-1]||'z';
   const modMap={
-    1:{mods:null,formula:`"${kw}" + a/b/c...z`,natural:false},
-    2:{mods:null,formula:`a/b/c...z + "${kw}"`,natural:false},
+    1:{mods:null,formula:`"${kw}" + ${a0}/${a1}/${a2}...${aLast}`,natural:false,autoCount:insAlphabet.length,autoA:a0,autoB:a1},
+    2:{mods:null,formula:`${a0}/${a1}/${a2}...${aLast} + "${kw}"`,natural:false,autoCount:insAlphabet.length,autoA:a0,autoB:a1},
     3:{mods:[...(m.s3_question_prefixes||[]),...(m.s3_question_suffixes||[])],formula:`"how to ${kw}", "${kw} safe"...`,natural:false},
     4:{mods:m.s4_platform||[],formula:`"${kw}" + [each platform modifier]`,natural:false},
     5:{mods:m.s5_problem||[],formula:`"${kw}" + [each problem modifier]`,natural:false},
     6:{mods:m.s6_context||[],formula:`"${kw}" + [each context modifier]`,natural:false},
     7:{mods:m.s7_numbers||[],formula:`"${kw}" + [each number/version]`,natural:false},
-    8:{mods:null,formula:`"${kw}" + aa/ab/ac...`,natural:false},
+    8:{mods:null,formula:`"${kw}" + ${a0}${a0}/${a0}${a1}...`,natural:false,autoCount:Math.min(insAlphabet.length,10)**2,autoA:`${a0}${a0}`,autoB:`${a0}${a1}`},
     9:{mods:m.s9_custom||[],formula:`[full AI-generated NATURAL query, NOT glued]`,natural:true},
     10:{mods:m.s10_wildcard||[],formula:`watch "${kw}", download "${kw}"...`,natural:false},
   };
@@ -1143,14 +1167,14 @@ function buildInspector(d,kw){
     const modsHtml=mp.mods
       ?(mp.mods.length?mp.mods.map(m=>`<span class="mod-chip" style="background:${color}14;color:${color};border-color:${color}30">${esc(m)}</span>`).join('')
         :'<span class="empty-sweep">No modifiers generated</span>')
-      :`<span class="empty-sweep">Auto-generated (a,b,c...z or aa,ab...)</span>`;
+      :`<span class="empty-sweep" dir="auto">Auto-generated (${esc(a0)},${esc(a1)},${esc(a2)}...${esc(aLast)}${num===8?' or double combos':''})</span>`;
 
     const examplesHtml=mp.mods&&mp.mods.length
       ?mp.mods.slice(0,6).map(mod=>{
         const q=mp.natural?mod:`${kw} ${mod}`;
         return`<div class="formula-ex">${mp.natural?'':`<span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">${esc(mod)}</span><span class="formula-arrow">→</span>`}<span class="formula-result">${esc(q)}</span></div>`;
       }).join('')
-      :`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10">a/b/c...</span><span class="formula-arrow">→</span><span class="formula-result">${esc(kw)} a, ${esc(kw)} b...</span></div>`;
+      :`<div class="formula-ex"><span class="formula-base">${esc(kw)}</span><span class="formula-plus">+</span><span class="formula-mod" style="color:${color};border-color:${color}30;background:${color}10" dir="auto">${esc(mp.autoA||'a')}/${esc(mp.autoB||'b')}...</span><span class="formula-arrow">→</span><span class="formula-result" dir="auto">${esc(kw)} ${esc(mp.autoA||'a')}, ${esc(kw)} ${esc(mp.autoB||'b')}...</span></div>`;
 
     item.innerHTML=`
       <div class="sweep-hdr" onclick="toggleSweepBody(${num})">
@@ -1158,7 +1182,7 @@ function buildInspector(d,kw){
         <div class="sweep-name" style="color:${isSelected?color:SC[num]+'88'}">${meta.name}</div>
         <div class="sweep-desc">${meta.desc}</div>
         <div class="sweep-meta">
-          ${mp.mods?`<span class="sweep-count" style="color:${color}">${mp.mods.length} ${mp.natural?'phrases':'modifiers'}</span>`:'<span class="sweep-count">A-Z auto</span>'}
+          ${mp.mods?`<span class="sweep-count" style="color:${color}">${mp.mods.length} ${mp.natural?'phrases':'modifiers'}</span>`:`<span class="sweep-count">${mp.autoCount||26} auto</span>`}
           <span class="sweep-count" id="sc-count-${num}">0 results</span>
           ${!isSelected?'<span class="tag tag-muted">skipped</span>':''}
         </div>
@@ -1167,7 +1191,7 @@ function buildInspector(d,kw){
       <div class="sweep-body" id="sbody-${num}">
         ${mp.natural?'<div class="natural-note">✓ These are complete natural phrases written by AI — not keyword+modifier concatenation. Word order varies realistically.</div>':''}
         <div class="mod-section">
-          <div class="mod-section-title">${mp.natural?'Complete natural queries':'Modifiers'} (${mp.mods?mp.mods.length:'26 auto'})</div>
+          <div class="mod-section-title">${mp.natural?'Complete natural queries':'Modifiers'} (${mp.mods?mp.mods.length:(mp.autoCount||26)+' auto'})</div>
           <div class="mod-chips">${modsHtml}</div>
         </div>
         <div class="formula-box">
