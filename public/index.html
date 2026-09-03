@@ -986,7 +986,16 @@ async function startRun(){
     9:{label:'S9_Natural', queries:m.s9_custom||[]},
     10:{label:'S10_Wild',  queries:m.s10_wildcard||[]},
     11:{label:'S11_Arabizi',queries:(lang==='ar')?(m.s11_arabizi||[]):[]},
-    12:{label:'S12_Spelling',queries:(()=>{const variants=m.s12_spelling_variants||[];const q=[];variants.forEach(v=>{q.push(v);alphabet.forEach(c=>q.push(`${v} ${c}`));});return q;})()},
+    12:{label:'S12_Spelling',queries:(()=>{
+      const seen=new Set([kw.toLowerCase()]);
+      const variants=(m.s12_spelling_variants||[]).filter(v=>{
+        const k=v.toLowerCase();
+        if(seen.has(k)) return false; // dedupes AND drops any variant identical to the base keyword
+        seen.add(k);
+        return true;
+      });
+      const q=[];variants.forEach(v=>{q.push(v);alphabet.forEach(c=>q.push(`${v} ${c}`));});return q;
+    })()},
   };
 
   await runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, 0, 0);
@@ -1080,28 +1089,54 @@ async function runSweeps(sweeps, DEFS, resolvedGeo, lang, delay, startSi, startQ
 }
 
 // ── SORT WITH AI — single explicit action after collection finishes ──────────
+// Sorts/filters ANY number of keywords by chunking client-side — each HTTP
+// call to /api/sort only processes one small batch, so no single request can
+// ever run long enough to hit a serverless timeout, no matter how large the
+// collected list is. This replaces the old design where the server chunked
+// internally inside one request (which reliably timed out past a few hundred
+// keywords). Calls onProgress(doneCount, total) after each chunk.
+async function sortInChunks(keywords, onProgress){
+  const CHUNK=40;
+  const DELAY_MS=6000; // paces Groq's free-tier TPM limit; harmless if the active provider doesn't need it
+  const chunks=[];
+  for(let i=0;i<keywords.length;i+=CHUNK) chunks.push(keywords.slice(i,i+CHUNK));
+
+  const relevantSet=new Set();
+  const errors=[];
+
+  for(let ci=0; ci<chunks.length; ci++){
+    if(ci>0) await sleep(DELAY_MS);
+    try{
+      const r=await fetch('/api/sort',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({keyword:currentKw,niche:modData?.niche||'',intent_summary:modData?.intent_summary||'',keywords:chunks[ci]})});
+      const rawText=await r.text();
+      let d;
+      try{ d=JSON.parse(rawText); }
+      catch{
+        throw new Error(`server didn't return valid JSON (got: "${rawText.slice(0,80)}") — likely a timeout or crash`);
+      }
+      (d.relevant||[]).forEach(k=>relevantSet.add(k.toLowerCase()));
+      if(d._error) errors.push(`chunk ${ci+1}: ${d._error}`);
+    }catch(e){
+      console.error(`Sort chunk ${ci+1}/${chunks.length} failed:`,e);
+      errors.push(`chunk ${ci+1}: ${e.message}`);
+      // this chunk's items just aren't added to relevantSet — they land in Review/not-filtered, nothing is lost
+    }
+    if(onProgress) onProgress(Math.min((ci+1)*CHUNK,keywords.length),keywords.length);
+  }
+
+  return {relevantSet,errors};
+}
+
 async function sortWithAI(){
   if(!collected.length){alert('Nothing collected yet. Run a sweep first.');return;}
   const btn=$('sort-ai-btn');
   btn.disabled=true;
-  btn.textContent='⏳ Sorting...';
 
   try{
     const kwList=collected.map(k=>k.kw);
-    const r=await fetch('/api/sort',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        keyword:currentKw,
-        niche:modData?.niche||'',
-        intent_summary:modData?.intent_summary||'',
-        keywords:kwList
-      })});
-    const rawText=await r.text();
-    if(!rawText||rawText.trim().startsWith('<')||rawText.includes('upstream error')){
-      throw new Error('Server gateway error — Railway returned an error page. Try again in a moment.');
-    }
-    const d=JSON.parse(rawText);
+    const {relevantSet,errors}=await sortInChunks(kwList,(done,total)=>{btn.textContent=`⏳ Sorting ${done}/${total}...`;});
 
-    const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
     relevant=[];review=[];
     collected.forEach(item=>{
       if(relevantSet.has(item.kw.toLowerCase())) relevant.push(item);
@@ -1116,7 +1151,7 @@ async function sortWithAI(){
 
     sortDone=true;
     $('sort-ai-banner').classList.remove('show');
-    $('sort-result-note').textContent=`AI sorted ${collected.length} collected keywords → ${relevant.length} Relevant, ${review.length} need Review${d._error?' (note: '+d._error+')':''}`;
+    $('sort-result-note').textContent=`AI sorted ${collected.length} collected keywords → ${relevant.length} Relevant, ${review.length} need Review${errors.length?` (${errors.length} of ${Math.ceil(kwList.length/40)} batches had errors — those items were left in Review, nothing was lost)`:''}`;
     $('sort-result-note').style.display='block';
 
     $('sweep-pills-rel').innerHTML='';delete $('sweep-pills-rel').dataset.rendered;
@@ -1136,24 +1171,11 @@ async function filterReviewWithAI(){
   if(!review.length){alert('Review tab is empty — nothing to filter.');return;}
   const btn=$('filter-ai-btn');
   btn.disabled=true;
-  btn.textContent='⏳ Filtering...';
 
   try{
     const kwList=review.map(k=>k.kw);
-    const r=await fetch('/api/sort',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        keyword:currentKw,
-        niche:modData?.niche||'',
-        intent_summary:modData?.intent_summary||'',
-        keywords:kwList
-      })});
-    const rawText=await r.text();
-    if(!rawText||rawText.trim().startsWith('<')||rawText.includes('upstream error')){
-      throw new Error('Server gateway error — Railway returned an error page. Try again in a moment.');
-    }
-    const d=JSON.parse(rawText);
+    const {relevantSet,errors}=await sortInChunks(kwList,(done,total)=>{btn.textContent=`⏳ Filtering ${done}/${total}...`;});
 
-    const relevantSet=new Set((d.relevant||[]).map(k=>k.toLowerCase()));
     filteredTab=review.filter(item=>relevantSet.has(item.kw.toLowerCase()));
 
     $('filtered-tab-btn').style.display='flex';
@@ -1161,7 +1183,7 @@ async function filterReviewWithAI(){
     renderTable('filtered');
     updateBadges();
     saveSession();
-    alert(`AI found ${filteredTab.length} of ${review.length} Review items likely relevant. Check the new "Filtered" tab.`);
+    alert(`AI found ${filteredTab.length} of ${review.length} Review items likely relevant. Check the new "Filtered" tab.${errors.length?` (${errors.length} batch(es) had errors — see console.)`:''}`);
   }catch(e){
     alert('Filter failed: '+e.message);
   }finally{
