@@ -192,7 +192,7 @@ Return this exact JSON:
 // ── RETRY WRAPPER ─────────────────────────────────────────────────────────────
 // Retries on network errors AND Gemini 503 (high demand) with backoff.
 // Does NOT retry real API errors (auth failures, quota exceeded, bad request).
-async function withRetry(fn, label, maxAttempts = 3) {
+async function withRetry(fn, label, maxAttempts = 2) {
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -252,7 +252,7 @@ async function callGemini(prompt) {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 65536, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
       })
-    }, 180000);
+    }, 30000);
     const d = await safeJson(r, 'Gemini');
     if (d.error) {
       const code = d.error.code || d.error.status || 'unknown';
@@ -275,7 +275,7 @@ async function callAnthropic(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
-    }, 120000);
+    }, 20000);
     const d = await safeJson(r, 'Anthropic');
     if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
     return d.content?.map(c => c.text || '').join('') || '';
@@ -289,7 +289,7 @@ async function callGroq(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
-    }, 120000);
+    }, 20000);
     const d = await safeJson(r, 'Groq');
     if (d.error) throw new Error(`Groq: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
@@ -303,7 +303,7 @@ async function callOpenAI(prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
       body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
-    }, 120000);
+    }, 20000);
     const d = await safeJson(r, 'OpenAI');
     if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
     return d.choices?.[0]?.message?.content || '';
