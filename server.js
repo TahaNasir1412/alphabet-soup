@@ -23,6 +23,22 @@ function getActiveProvider() {
   return null;
 }
 
+// ── NATIVE ALPHABETS ──────────────────────────────────────────────────────────
+// Used for S1 (Suffix A-Z), S2 (Prefix A-Z), S8 (Deep double-char) so those
+// sweeps glue on real letters from the target language's script instead of
+// always defaulting to Latin a-z. The AI is asked to generate this per-request
+// (it knows far more scripts than we can hardcode), but these are a safety net
+// for when the AI omits the field, or when running in rule-based fallback mode.
+const ALPHABETS = {
+  en: 'abcdefghijklmnopqrstuvwxyz'.split(''),
+  ar: ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'],
+  ur: ['ا','ب','پ','ت','ٹ','ث','ج','چ','ح','خ','د','ڈ','ذ','ر','ڑ','ز','ژ','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ک','گ','ل','م','ن','و','ہ','ی'],
+  ru: ['а','б','в','г','д','е','ё','ж','з','и','й','к','л','м','н','о','п','р','с','т','у','ф','х','ц','ч','ш','щ','ъ','ы','ь','э','ю','я'],
+};
+function defaultAlphabet(lang) {
+  return ALPHABETS[lang] || ALPHABETS.en;
+}
+
 app.get('/api/status', (req, res) => {
   const provider = getActiveProvider();
   res.json({
@@ -97,6 +113,13 @@ s3_question_prefixes MUST include BOTH the bare form AND the expanded form of ev
 ━━━ STEP 4: INTENT CLASSIFICATION RULES ━━━
 Classify keywords as: navigational, download, streaming, informational, commercial, transactional, local, troubleshoot.
 
+━━━ STEP 5: NATIVE ALPHABET FOR PREFIX/SUFFIX SWEEPS (CRITICAL for non-English) ━━━
+Separately from the modifier lists above, this tool also runs a raw "Suffix A-Z" and "Prefix A-Z" sweep — appending/prepending each letter of the alphabet to the base keyword, one at a time (e.g. in English: "${keyword} a", "${keyword} b", ... "${keyword} z"). This must use the REAL native script of "${lang}", not English letters, whenever the output language is not English.
+- If ${lang} uses an alphabet or abjad (Arabic, Russian/Cyrillic, Spanish, French, German, Turkish, Polish, etc.), return the ordered list of its individual letters exactly as a native speaker would type them one at a time in a search box.
+- If ${lang} uses a non-alphabetic script where single-letter typing isn't how autocomplete is normally explored (e.g. Japanese, Korean, Hindi/Devanagari, Chinese), return your best approximation of the atomic characters/symbols real users incrementally type in that script (e.g. Japanese hiragana gojūon order, Hangul basic consonants, Devanagari consonants+vowels) — do not just return English a-z as a placeholder.
+- For English, return exactly the 26 letters a-z in order.
+- Do NOT include this list inside "sweeps" — it is a separate top-level field.
+
 ━━━ OUTPUT FORMAT ━━━
 Return this exact JSON:
 {
@@ -107,6 +130,7 @@ Return this exact JSON:
   "geo_recommendation": "2-letter code",
   "geo_reason": "one sentence",
   "output_language": "${lang}",
+  "native_alphabet": ["ordered list of individual native-script letters/characters for the Suffix A-Z / Prefix A-Z sweeps — see STEP 5 above. For English: [\\"a\\",\\"b\\",...,\\"z\\"]"],
   "sweeps": {
     "s3_question_prefixes": ["minimum 12 question openers"],
     "s3_question_suffixes": ["minimum 18 qualifiers"],
@@ -313,6 +337,7 @@ function ruleBased(keyword, outputLang) {
     geo_recommendation: detected?.geo || 'us',
     geo_reason: 'Detected from keyword signals (rule-based fallback)',
     output_language: lang,
+    native_alphabet: defaultAlphabet(lang),
     sweeps: {
       s3_question_prefixes: ['is','are','does','do','can','will','why','how','what','where','when','who','which','should','how to','why is','why does','what is','can i','does it','where to','when does','who makes','how does','should i','is it','is the'],
       s3_question_suffixes: ['safe','free','working','legal','real','good','worth it','legit','available','updated','down','official'],
@@ -398,6 +423,9 @@ app.post('/api/modifiers', async (req, res) => {
 
     const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
+    if (!Array.isArray(parsed.native_alphabet) || parsed.native_alphabet.length === 0) {
+      parsed.native_alphabet = defaultAlphabet(output_lang);
+    }
     parsed._source = provider;
     parsed._model = PROVIDERS[provider].model;
     parsed._active_provider = provider;
@@ -414,6 +442,9 @@ app.post('/api/modifiers', async (req, res) => {
       const raw = await callGroq(prompt);
       const clean = raw.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
+      if (!Array.isArray(parsed.native_alphabet) || parsed.native_alphabet.length === 0) {
+        parsed.native_alphabet = defaultAlphabet(output_lang);
+      }
       parsed._source = 'groq';
       parsed._model = PROVIDERS.groq.model;
       parsed._active_provider = 'groq';
