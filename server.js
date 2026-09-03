@@ -39,6 +39,23 @@ function defaultAlphabet(lang) {
   return ALPHABETS[lang] || ALPHABETS.en;
 }
 
+// Ensures every /api/modifiers response — AI or rule-based — always has these
+// fields in a safe shape, even if the AI model omits or malforms them.
+function fillModifierDefaults(parsed, lang) {
+  if (!Array.isArray(parsed.native_alphabet) || parsed.native_alphabet.length === 0) {
+    parsed.native_alphabet = defaultAlphabet(lang);
+  }
+  if (typeof parsed.dialect_used !== 'string') parsed.dialect_used = '';
+  if (typeof parsed.arabizi_keyword !== 'string') parsed.arabizi_keyword = '';
+  parsed.sweeps = parsed.sweeps || {};
+  if (!Array.isArray(parsed.sweeps.s11_arabizi)) parsed.sweeps.s11_arabizi = [];
+  if (!Array.isArray(parsed.sweeps.s12_spelling_variants)) parsed.sweeps.s12_spelling_variants = [];
+  // s11 is Arabic-only by design — never let a non-Arabic response carry content here,
+  // regardless of what the model returned.
+  if (lang !== 'ar') parsed.sweeps.s11_arabizi = [];
+  return parsed;
+}
+
 app.get('/api/status', (req, res) => {
   const provider = getActiveProvider();
   res.json({
@@ -55,7 +72,7 @@ app.get('/api/status', (req, res) => {
 function buildPrompt(keyword, nicheHint, outputLang) {
   const lang = outputLang || 'en';
   const langNote = lang !== 'en'
-    ? `OUTPUT LANGUAGE IS "${lang}". ALL modifier values, query strings, and example phrases MUST be written in ${lang}. JSON keys stay in English.`
+    ? `OUTPUT LANGUAGE IS "${lang}". ALL modifier values, query strings, and example phrases INSIDE "sweeps" (and "arabizi_keyword" if present) MUST be written in ${lang}. JSON keys stay in English. See rule 10 below for the fields that stay in English regardless.`
     : 'Output language is English.';
 
   return `RULES — READ FIRST:
@@ -65,6 +82,10 @@ function buildPrompt(keyword, nicheHint, outputLang) {
 4. Only include modifiers that REAL users actually type.
 5. Modifiers must be typed as they appear in a search box — lowercase, natural phrasing.
 6. CRITICAL — NATURAL QUERY ORDER: real searchers do NOT always glue a modifier onto the end of the exact keyword phrase. Someone searching for a local service does not always type "[service] in [city] near me" — they're just as likely to type "[city] [service]", "[service] company [city]", "who does [service] in [city]". This applies to every niche — ecommerce ("buy nike shoes online" vs "nike shoes where to buy"), SaaS ("notion pricing" vs "how much does notion cost"), streaming, finance, anything. Model every realistic word order, not just keyword+modifier concatenation.
+7. GRAMMATICAL CORRECTNESS: every modifier, when concatenated with the keyword, must form a grammatically correct, natural phrase in ${lang} — never a literal word-for-word translation of an English template glued onto the keyword. Inflect adjectives/nouns for gender, number, and case exactly as required to agree with the keyword's head noun wherever ${lang} has such agreement (e.g. Arabic, Russian, Spanish, French, German). If gluing a modifier directly after the keyword would be ungrammatical or unnatural in ${lang}, do not force it — put that idea in s9/s10 as a properly-ordered natural query instead.
+8. DELIBERATE CODE-SWITCHING ONLY: real ${lang} speakers often keep certain terms in English/Latin script even mid-sentence — brand names, platform/protocol names (iOS, Android, PWA, API, Chrome), some tech jargon. Use English/Latin-script terms ONLY where that reflects genuine real-world search behavior for ${lang} speakers. Translate everyday generic words (free, download, best, near me, safe, price, review, working, alternative) into ${lang} — do not default to English out of convenience.
+9. NUMERALS: for sweeps.s7_numbers, use the numeral glyphs real ${lang} speakers actually type into Google search. For the overwhelming majority of languages/markets — including Arabic, Hindi, Urdu — this means ordinary Western digits (0-9) even though the language has its own native numeral system, because that is what people actually type online. Only use native numeral glyphs (e.g. Eastern Arabic-Indic ١٢٣) if you are confident that specific market genuinely searches that way, not merely because the script has its own numerals.
+10. ENGLISH-ONLY META FIELDS: regardless of ${lang}, the following fields must ALWAYS be written in English so the person running this tool (who may not read ${lang}) can understand what you detected: "niche", "intent", "intent_summary", "geo_reason", "niche_notes", "dialect_used", and the "question"/"options" text inside "suggested_clarifications". Every other text field — everything inside "sweeps" — must be written in ${lang}, per rule 2. Do not mix these two groups.
 
 You are a senior SEO keyword researcher specialising in Google Autocomplete behaviour across every niche and language market. Your outputs power a tool that queries Google Autocomplete using both (a) keyword+modifier concatenation and (b) fully independent natural phrasings you write yourself. Model how real humans type into a search box for THIS SPECIFIC keyword — whatever niche it turns out to be. Never assume the niche from a previous request; evaluate fresh every time.
 
@@ -107,8 +128,17 @@ For EVERY niche: s9_custom must contain minimum 25 COMPLETE NATURAL QUERIES as f
 ━━━ STEP 3: GEO DETECTION ━━━
 Indian signals→India(in). German→Germany(de). Portuguese/Brazilian→Brazil(br). Spanish/Latin American→Mexico(mx)/Spain(es). Japanese/Korean→Japan(jp)/Korea(kr). Arabic→Saudi(sa)/UAE(ae). UK spelling/cities→UK(gb). US city name→USA(us). Unknown→USA(us).
 
+If output_language is "ar" (Arabic): real search behavior varies significantly by dialect, not just Modern Standard Arabic (MSA). Based on the detected geo_recommendation, bias every Arabic modifier and s9/s10/s11 query toward that region's actual colloquial phrasing — Egyptian Arabic for Egypt, Gulf/Khaleeji for Saudi/UAE/Kuwait/Qatar, Levantine for Jordan/Lebanon/Syria/Palestine, Maghrebi for Morocco/Algeria/Tunisia — rather than defaulting to formal MSA, unless the keyword itself is formal/religious/legal in register (in which case MSA is correct and expected). Record which dialect you used in the "dialect_used" output field.
+
 ━━━ STEP 3.5: QUESTION PREFIX COVERAGE (CRITICAL) ━━━
-s3_question_prefixes MUST include BOTH the bare form AND the expanded form of every question pattern, because real searchers drop words inconsistently. For example, do not only include "is it" — also separately include bare "is". Do not only include "how do i" — also separately include bare "how". Required minimum bare forms that MUST always appear as standalone entries regardless of niche: "is", "are", "does", "do", "can", "will", "why", "how", "what", "where", "when", "who", "which", "should". Then ALSO add expanded/natural variants on top of these bare forms ("is it", "is the", "how do i", "how to", "why is", "why does", etc). Missing the bare form is a critical coverage gap — a real user typing "is anime salt safe" must be matched by a bare "is" prefix producing exactly "is anime salt", not only by "is it" producing "is it anime salt" which is a different, less common query.
+s3_question_prefixes MUST include BOTH the bare form AND the expanded form of every question pattern IN ${lang}, because real searchers drop words inconsistently in every language, not just English.
+
+Required minimum CONCEPTS that must always appear as standalone bare-form entries — the words below are naming the CONCEPT only, you must translate each into ${lang} exactly as a native ${lang} speaker would type it alone. Do NOT return these English words themselves unless lang is actually "en": is, are, does, do, can, will, why, how, what, where, when, who, which, should.
+- For English (lang=en): use the literal English words above.
+- For Arabic (lang=ar): هل (is/does), لماذا (why), كيف (how), ما / ماذا (what), أين (where), متى (when), من (who), أي (which), يمكن / هل يمكن (can), سوف / هل سوف (will).
+- For Russian (lang=ru): это (is), почему (why), как (how), что (what), где (where), когда (when), кто (who), какой (which), можно (can).
+- For any other language: apply the same principle — translate each concept into that language's own natural bare interrogative/auxiliary word.
+Then ALSO add expanded/natural variants on top of these bare forms, in ${lang} (the equivalent of "is it", "how do i", "why is", etc — NOT the English phrases themselves for non-English output). Missing the bare form in ${lang} is a critical coverage gap — a real user typing the ${lang} equivalent of "is anime salt safe" must be matched by the bare translated "is"-equivalent producing exactly that short query, not only by a longer expanded form.
 
 ━━━ STEP 4: INTENT CLASSIFICATION RULES ━━━
 Classify keywords as: navigational, download, streaming, informational, commercial, transactional, local, troubleshoot.
@@ -119,6 +149,11 @@ Separately from the modifier lists above, this tool also runs a raw "Suffix A-Z"
 - If ${lang} uses a non-alphabetic script where single-letter typing isn't how autocomplete is normally explored (e.g. Japanese, Korean, Hindi/Devanagari, Chinese), return your best approximation of the atomic characters/symbols real users incrementally type in that script (e.g. Japanese hiragana gojūon order, Hangul basic consonants, Devanagari consonants+vowels) — do not just return English a-z as a placeholder.
 - For English, return exactly the 26 letters a-z in order.
 - Do NOT include this list inside "sweeps" — it is a separate top-level field.
+
+━━━ STEP 6: SPELLING VARIANTS ━━━
+For ANY language: if this specific language/keyword has a common source of spelling ambiguity real searchers actually type differently — Arabic hamza confusion (أ/إ/آ vs bare ا) or ة vs ه, French/Spanish accents included vs dropped, German ä/ö/ü/ß vs ae/oe/ue/ss — provide up to 5 alternate valid spellings of the exact base keyword in "sweeps.s12_spelling_variants". Return an empty array if no such ambiguity genuinely applies to this keyword.
+
+(Arabizi/chat-script transliteration is generated by a separate call — do not attempt it here.)
 
 ━━━ OUTPUT FORMAT ━━━
 Return this exact JSON:
@@ -131,6 +166,7 @@ Return this exact JSON:
   "geo_reason": "one sentence",
   "output_language": "${lang}",
   "native_alphabet": ["ordered list of individual native-script letters/characters for the Suffix A-Z / Prefix A-Z sweeps — see STEP 5 above. For English: [\\"a\\",\\"b\\",...,\\"z\\"]"],
+  "dialect_used": "if output_language is \\"ar\\": which Arabic dialect the modifiers above are biased toward (e.g. \\"Egyptian Arabic\\", \\"Gulf/Khaleeji Arabic\\", \\"Modern Standard Arabic\\") — see STEP 3. Empty string otherwise.",
   "sweeps": {
     "s3_question_prefixes": ["minimum 12 question openers"],
     "s3_question_suffixes": ["minimum 18 qualifiers"],
@@ -139,7 +175,8 @@ Return this exact JSON:
     "s6_context": ["minimum 18 modifiers — APPENDED after keyword"],
     "s7_numbers": ["all relevant numbers"],
     "s9_custom": ["minimum 25 COMPLETE NATURAL QUERIES — NOT keyword+modifier concatenation. Full standalone phrases with the core entity in NATURAL word order, sometimes at start, middle, or implied. Include reordered variants, question forms, zero-extra-word generic forms. MOST important field for real search behaviour."],
-    "s10_wildcard": ["minimum 15 intent-variant queries in varied natural order"]
+    "s10_wildcard": ["minimum 15 intent-variant queries in varied natural order"],
+    "s12_spelling_variants": ["up to 5 alternate valid spellings of the exact base keyword — see STEP 6. Empty array if not applicable."]
   },
   "intent_rules": {
     "navigational": ["signal words"], "download": ["signal words"], "streaming": ["signal words"],
@@ -213,7 +250,7 @@ async function callGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 32768, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
+        generationConfig: { temperature: 0.2, maxOutputTokens: 65536, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } }
       })
     }, 180000);
     const d = await safeJson(r, 'Gemini');
@@ -237,7 +274,7 @@ async function callAnthropic(prompt) {
     const r = await fetchWithTimeout(cfg.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
     }, 120000);
     const d = await safeJson(r, 'Anthropic');
     if (d.error) throw new Error(`Anthropic: ${d.error.message}`);
@@ -251,7 +288,7 @@ async function callGroq(prompt) {
     const r = await fetchWithTimeout(cfg.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 6000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
+      body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }], temperature: 0.2 })
     }, 120000);
     const d = await safeJson(r, 'Groq');
     if (d.error) throw new Error(`Groq: ${d.error.message}`);
@@ -265,7 +302,7 @@ async function callOpenAI(prompt) {
     const r = await fetchWithTimeout(cfg.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 4000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
+      body: JSON.stringify({ model: cfg.model, max_tokens: 8000, messages: [{ role: 'user', content: prompt }], temperature: 0.2, response_format: { type: 'json_object' } })
     }, 120000);
     const d = await safeJson(r, 'OpenAI');
     if (d.error) throw new Error(`OpenAI: ${d.error.message}`);
@@ -338,6 +375,8 @@ function ruleBased(keyword, outputLang) {
     geo_reason: 'Detected from keyword signals (rule-based fallback)',
     output_language: lang,
     native_alphabet: defaultAlphabet(lang),
+    dialect_used: '',
+    arabizi_keyword: '',
     sweeps: {
       s3_question_prefixes: ['is','are','does','do','can','will','why','how','what','where','when','who','which','should','how to','why is','why does','what is','can i','does it','where to','when does','who makes','how does','should i','is it','is the'],
       s3_question_suffixes: ['safe','free','working','legal','real','good','worth it','legit','available','updated','down','official'],
@@ -347,6 +386,8 @@ function ruleBased(keyword, outputLang) {
       s7_numbers: pack.s7,
       s9_custom: pack.s9,
       s10_wildcard: pack.s10,
+      s11_arabizi: [],
+      s12_spelling_variants: [],
     },
     intent_rules: {
       navigational: ['login','official','site','homepage','link','website','url'],
@@ -378,7 +419,7 @@ app.get('/api/suggest', async (req, res) => {
 
   for (const client of clients) {
     try {
-      const url = `http://suggestqueries.google.com/complete/search?client=${client}&q=${encodeURIComponent(q)}&hl=${hl||'en'}&gl=${gl||'us'}`;
+      const url = `http://suggestqueries.google.com/complete/search?client=${client}&q=${encodeURIComponent(q)}&hl=${hl||'en'}&gl=${gl||'us'}&ie=utf-8&oe=utf-8`;
       const sc = new AbortController();
       const st = setTimeout(() => sc.abort(), 7000);
       const r = await fetch(url, { signal: sc.signal });
@@ -422,10 +463,7 @@ app.post('/api/modifiers', async (req, res) => {
     else if (provider === 'openai')    raw = await callOpenAI(prompt);
 
     const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    if (!Array.isArray(parsed.native_alphabet) || parsed.native_alphabet.length === 0) {
-      parsed.native_alphabet = defaultAlphabet(output_lang);
-    }
+    const parsed = fillModifierDefaults(JSON.parse(clean), output_lang);
     parsed._source = provider;
     parsed._model = PROVIDERS[provider].model;
     parsed._active_provider = provider;
@@ -441,10 +479,7 @@ app.post('/api/modifiers', async (req, res) => {
       console.log(`${provider} failed — trying Groq as fallback...`);
       const raw = await callGroq(prompt);
       const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      if (!Array.isArray(parsed.native_alphabet) || parsed.native_alphabet.length === 0) {
-        parsed.native_alphabet = defaultAlphabet(output_lang);
-      }
+      const parsed = fillModifierDefaults(JSON.parse(clean), output_lang);
       parsed._source = 'groq';
       parsed._model = PROVIDERS.groq.model;
       parsed._active_provider = 'groq';
@@ -462,6 +497,139 @@ app.post('/api/modifiers', async (req, res) => {
   fb._ai_error = primaryError;
   fb._active_provider = 'rule-based';
   res.json(fb);
+});
+
+// ── ARABIC EXTRAS ENDPOINT (Arabizi) ──────────────────────────────────────────
+// Split out from the main /api/modifiers call on purpose: generating 15+ full
+// natural-language sentences in a second script (Arabizi) inside the same
+// mega-prompt was a meaningful contributor to Gemini's MAX_TOKENS truncation.
+// This is its own small call so a failure here never breaks S1-S10.
+function buildArabicExtrasPrompt(keyword, nicheHint, dialectUsed) {
+  return `Return ONLY raw JSON, no markdown, no explanation outside the JSON.
+
+You are transliterating an Arabic search keyword into "Arabizi" — Arabic typed using Latin letters plus chat numerals for sounds with no direct Latin equivalent (2=ء, 3=ع, gh/3'=غ, kh/5=خ, 6=ط, 6'=ظ, 7=ح, 8 or 9=ق) — the way many Arabic speakers, especially mobile and younger users, actually type when Arabic script isn't convenient. A meaningful share of real Google Autocomplete search volume for Arabic topics happens in Arabizi, not Arabic script, so this matters for real keyword coverage.
+
+ARABIC KEYWORD: "${keyword}"
+${nicheHint ? `CONTEXT: ${nicheHint}` : ''}
+${dialectUsed ? `DIALECT IN USE: ${dialectUsed} — write the Arabizi in this dialect's natural informal phrasing, not a word-for-word transliteration of formal MSA.` : ''}
+
+Return this exact JSON:
+{
+  "arabizi_keyword": "the base keyword transliterated into realistic Arabizi",
+  "s11_arabizi": ["minimum 15 COMPLETE natural search queries written fully in Arabizi script — real informal phrasing an Arabizi typer would use, varied word order, mix of questions and direct phrases — not the Arabic-script keyword with letters swapped one-for-one"]
+}`;
+}
+
+app.post('/api/arabic-extras', async (req, res) => {
+  const { keyword, niche_hint, dialect_used } = req.body;
+  if (!keyword) return res.status(400).json({ error: 'keyword required' });
+
+  const provider = getActiveProvider();
+  if (!provider) return res.json({ arabizi_keyword: '', s11_arabizi: [] });
+
+  const prompt = buildArabicExtrasPrompt(keyword, niche_hint, dialect_used);
+
+  async function callProvider(p) {
+    let raw = '';
+    if (p === 'gemini') raw = await callGemini(prompt);
+    else if (p === 'anthropic') raw = await callAnthropic(prompt);
+    else if (p === 'groq') raw = await callGroq(prompt);
+    else if (p === 'openai') raw = await callOpenAI(prompt);
+    const clean = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  }
+
+  try {
+    const parsed = await callProvider(provider);
+    return res.json({
+      arabizi_keyword: typeof parsed.arabizi_keyword === 'string' ? parsed.arabizi_keyword : '',
+      s11_arabizi: Array.isArray(parsed.s11_arabizi) ? parsed.s11_arabizi : [],
+    });
+  } catch (e) {
+    console.error(`Arabic extras (${provider}) failed: ${e.message}`);
+  }
+
+  if (provider !== 'groq' && PROVIDERS.groq.key) {
+    try {
+      const parsed = await callProvider('groq');
+      return res.json({
+        arabizi_keyword: typeof parsed.arabizi_keyword === 'string' ? parsed.arabizi_keyword : '',
+        s11_arabizi: Array.isArray(parsed.s11_arabizi) ? parsed.s11_arabizi : [],
+      });
+    } catch (e2) {
+      console.error(`Arabic extras groq fallback failed: ${e2.message}`);
+    }
+  }
+
+  // Honest failure — empty, never fabricated Latin+Arabic mashups.
+  res.json({ arabizi_keyword: '', s11_arabizi: [] });
+});
+
+// ── TRANSLATE ENDPOINT ────────────────────────────────────────────────────────
+// Batch-translates collected/relevant keywords into English so the person
+// running the tool can understand what a non-English keyword actually means,
+// regardless of which language the sweep itself was run in.
+function buildTranslatePrompt(keywords, sourceLang) {
+  const list = keywords.map((k, i) => `${i + 1}. ${k}`).join('\n');
+  return `Translate each of the following search queries into short, natural English — a plain gloss that lets an English speaker understand what the query means and is searching for. Not a flowery rewrite. Keep brand/product names as-is.
+
+SOURCE LANGUAGE: ${sourceLang || 'auto-detect'}
+QUERIES (numbered, ${keywords.length} total):
+${list}
+
+Return ONLY raw JSON, no markdown:
+{ "translations": [{"kw": "<exact original query text, unchanged>", "en": "<English translation>"}] }
+Every query from the input must appear exactly once, using the EXACT original string for "kw".`;
+}
+
+app.post('/api/translate', async (req, res) => {
+  const { keywords, source_lang } = req.body;
+  if (!keywords?.length) return res.json({ translations: [] });
+
+  const provider = getActiveProvider();
+  if (!provider) {
+    return res.json({ translations: keywords.map(kw => ({ kw, en: null })), _note: 'No AI provider configured' });
+  }
+
+  const CHUNK = 50;
+  const chunks = [];
+  for (let i = 0; i < keywords.length; i += CHUNK) chunks.push(keywords.slice(i, i + CHUNK));
+
+  let all = [];
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci];
+    if (ci > 0) await new Promise(r => setTimeout(r, 4000));
+
+    const prompt = buildTranslatePrompt(chunk, source_lang);
+    try {
+      let raw = '';
+      if (provider === 'gemini') raw = await callGemini(prompt);
+      else if (provider === 'anthropic') raw = await callAnthropic(prompt);
+      else if (provider === 'groq') raw = await callGroq(prompt);
+      else if (provider === 'openai') raw = await callOpenAI(prompt);
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      all.push(...(parsed.translations || []));
+    } catch (e) {
+      console.error(`Translate chunk ${ci + 1} primary failed: ${e.message}`);
+      if (provider !== 'groq' && PROVIDERS.groq.key) {
+        try {
+          await new Promise(r => setTimeout(r, 3000));
+          const raw = await callGroq(prompt);
+          const clean = raw.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+          all.push(...(parsed.translations || []));
+          continue;
+        } catch (e2) {
+          console.error(`Translate chunk ${ci + 1} groq fallback failed: ${e2.message}`);
+        }
+      }
+      // Honest failure for this chunk — null, not a fabricated/untranslated guess.
+      all.push(...chunk.map(kw => ({ kw, en: null })));
+    }
+  }
+
+  res.json({ translations: all });
 });
 
 // ── SORT ENDPOINT ─────────────────────────────────────────────────────────────
