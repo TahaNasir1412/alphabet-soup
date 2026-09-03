@@ -408,6 +408,10 @@ textarea{resize:vertical;min-height:46px;font-size:12px}
     ⚠️ <span>Google rate-limiting — getting empty results. Hit Stop, wait 2-3 mins, then click Resume to continue from where you left off.</span>
   </div>
 
+  <div class="rl-alert" id="mod-fail-alert" style="background:var(--rb);border-color:var(--rb2);color:var(--red)">
+    ⚠️ <span>AI enrichment failed or timed out — this run used a bare-minimum fallback (no real niche detection, no S9/S11/S12, no localized modifiers for S3-S7). S1/S2/S8 alphabet crawl still ran on real data. This is usually the AI provider timing out on Vercel — try Generate again; if it keeps happening, the request may be too slow for the current serverless timeout.</span>
+  </div>
+
   <div class="status-bar" id="status-bar">
     <div class="status-top">
       <div class="status-msg"><div class="spinner" id="spinner"></div><span id="status-text">Starting...</span></div>
@@ -914,7 +918,7 @@ async function startRun(){
   $('inspector').classList.remove('show');
   $('seeds-wrap').classList.remove('show');
   $('rl-alert').classList.remove('show');
-  $('sweep-pills-rel').innerHTML='';
+  $('mod-fail-alert').classList.remove('show');
   $('sweep-pills-rel').dataset.rendered='';
   $('tbody-rel').innerHTML='';$('tbody-noise').innerHTML='';$('tbody-qlog').innerHTML='';$('tbody-review').innerHTML='';$('tbody-collected').innerHTML='';$('tbody-filtered').innerHTML='';
   $('spinner').style.display='inline-block';
@@ -959,8 +963,10 @@ async function startRun(){
     }
   }catch(e){
     console.warn('Modifier fetch failed:',e);
+    $('mod-fail-alert').classList.add('show');
     modData={sweeps:{s3_question_prefixes:['how to','why','what is','is','can i'],s3_question_suffixes:['safe','free','working'],s4_platform:['free','online','app'],s5_problem:['not working','alternative'],s6_context:['for beginners','best'],s7_numbers:['2024','2025'],s9_custom:[],s10_wildcard:[`best ${kw}`]},core_entity_tokens:kw.split(' ')};
     coreTokens=kw.split(' ');
+    updateAIStatusUI({ai_active:false,err:'Request failed or timed out client-side — see banner above.'});
   }
 
   const resolvedGeo=geo==='auto'?(modData.geo_recommendation||'us'):geo;
